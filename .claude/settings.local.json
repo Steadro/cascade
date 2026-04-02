@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Read(//c/Users/Kyle/**)",
+      "Bash(shopify app:*)",
+      "Bash(npx @shopify/create-app@latest --name cascade --template remix --flavor javascript)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git rebase:*)",
+      "Bash(find .:*)",
+      "Bash(rsync -a --exclude='.git' . /c/.dev/.app/cascade/)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

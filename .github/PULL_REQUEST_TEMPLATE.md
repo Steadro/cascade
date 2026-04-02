@@ -24,7 +24,7 @@ Fixes #0000 <!-- link to issue if one exists -->
 ### Test this PR
 
 ```bash
-shopify app init --template=https://github.com/Shopify/shopify-app-template-remix#<your-branch-name>
+shopify app init --template=https://github.com/Shopify/shopify-app-template-react-router#<your-branch-name>
 ```
 
 ### Checklist

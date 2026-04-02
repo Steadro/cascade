@@ -16,7 +16,7 @@ Before opening this issue, I have:
 - [ ] Found a reliable way to reproduce the problem that indicates it's a problem with the package
 - [ ] Looked for similar issues in this repository
 - [ ] Checked that this isn't an issue with a Shopify API
-  - If it is, please create a post in the [Shopify community forums](https://community.shopify.com/c/partners-and-developers/ct-p/appdev) or report it to [Shopify Partner Support](https://help.shopify.com/en/support/partners/org-select)
+  - If it is, please create a post in the [Shopify community forums](https://community.shopify.dev/) or report it to [Shopify Partner Support](https://help.shopify.com/en/support/partners/org-select)
 
 <!--
 Write a short description of the issue here.

@@ -1,4 +1,4 @@
-name: Create Javascript conversion PR
+name: Update JavaScript branch
 
 on:
   push:
@@ -12,59 +12,66 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2.7.0
+        uses: actions/checkout@v5.0.0
 
-      - name: Create lock file
-        run: touch yarn.lock
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
 
       - name: Setup Node.js
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        uses: actions/setup-node@v5
         with:
-          node-version: 22.12.x
-          cache: 'yarn'
+          node-version: 20.x
 
       - name: Install dependencies
-        run: yarn add -W --dev @shopify/eslint-plugin --ignore-engines
+        run: |
+          pnpm install
+          pnpm add -D @shopify/eslint-plugin
 
-      - name: Create temporary tsconfig file
+      - name: Create temporary tsconfig file for transpilation
         run: |
           echo '{
-            "include": ["./app/**/*", "*.ts", "*.tsx", ".graphqlrc.ts"],
+            "include": ["./app/**/*", "*.ts", "*.tsx", "env.d.ts", ".graphqlrc.ts"],
             "compilerOptions": {
+              "lib": ["DOM", "DOM.Iterable", "ES2022"],
               "strict": true,
-              "removeComments": false,
               "skipLibCheck": true,
               "isolatedModules": true,
+              "allowSyntheticDefaultImports": true,
+              "removeComments": false,
+              "forceConsistentCasingInFileNames": true,
               "noEmitOnError": true,
+              "allowJs": true,
+              "resolveJsonModule": true,
               "jsx": "preserve",
               "module": "ES2022",
               "moduleResolution": "bundler",
               "target": "ES2022",
-              "paths": {
-                "~/*": ["./app/*"]
-              }
+              "baseUrl": ".",
+              "types": ["@react-router/node", "vite/client", "@shopify/polaris-types"]
             }
           }' > tsconfig.js.json
 
       - name: Transpile to Javascript
-        run: yarn tsc -p tsconfig.js.json
+        run: pnpm tsc -p tsconfig.js.json
 
       - name: Remove Typescript files
         run: |
           find app \( -name "*.ts" -o -name "*.tsx" \) -delete
-          find . \( -name ".graphqlrc.ts" -o -name "tsconfig.js.json" -o -name "vite.config.ts" \) -delete
+          find . \( -name ".graphqlrc.ts" -o -name "tsconfig.js.json" -o -name "vite.config.ts" -o -name "env.d.ts" \) -delete
 
       - name: Run prettier
-        run: yarn prettier -w "app/**/*.{js,jsx}" ".graphqlrc.js" "vite.config.js"
+        run: pnpm prettier -w "app/**/*.{js,jsx}" ".graphqlrc.js" "vite.config.js"
 
       - name: Run ESLint
         run: |
-          yarn lint "app/**/*.{js,jsx}" ".graphqlrc.js" "vite.config.js" --fix --no-cache --ignore-pattern "\!.graphqlrc.js" --plugin @shopify/eslint-plugin --rule '{
+          pnpm eslint "app/**/*.{js,jsx}" ".graphqlrc.js" "vite.config.js" --fix --no-cache --ignore-pattern "\!.graphqlrc.js" --plugin @shopify/eslint-plugin --rule '{
             "import/order": "error",
             "import/newline-after-import": "error",
             "padding-line-between-statements": ["error",
               { "blankLine": "always", "prev": ["const", "let", "var"], "next": "*"},
-              { "blankLine": "any",    "prev": ["const", "let", "var"], "next": ["const", "let", "var"]}
+              { "blankLine": "any",    "prev": ["const", "let", "var"], "next": ["const", "let", "var"]},
               { "blankLine": "always", "prev": "*", "next": "return" },
               { "blankLine": "always", "prev": "*", "next": "export" },
               { "blankLine": "never",  "prev": "export", "next": "export" },
@@ -85,8 +92,8 @@ jobs:
           git add .
           git checkout -b temp_javascript_updates
           git commit -m "Convert template to Javascript"
-          git checkout javascript
-          git pull
+          git checkout javascript || git checkout -b javascript
+          git pull origin javascript || echo "No remote javascript branch yet"
           git checkout -
           git rebase -m -X theirs javascript
           git push -f origin temp_javascript_updates:javascript_updates

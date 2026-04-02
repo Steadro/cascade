@@ -4,15 +4,36 @@ name: CI
 
 jobs:
   CI:
-    name: CI_Node_${{ matrix.version }}
+    name: Node ${{ matrix.node }} and ${{ matrix.manager }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        version: [20.19.0, 22, 24]
+        node: [20.19.0, 22, 24]
+        manager: ['npm', 'yarn', 'pnpm']
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
-          node-version: ${{ matrix.version }}
-      - name: Install
-        run: yarn install
+          node-version: ${{ matrix.node }}
+
+      - name: Install pnpm
+        if: ${{ matrix.manager == 'pnpm' }}
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Install dependencies using ${{ matrix.manager }}
+        run: ${{ matrix.manager }} install
+
+      - name: Run TypeScript type checking
+        if: ${{ !startsWith(github.head_ref || github.ref_name, 'javascript') }}
+        run: npx tsc --noEmit
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Validate Prisma
+        run: npx prisma generate && npx prisma validate
+
+      - name: Build application
+        run: npm run build
