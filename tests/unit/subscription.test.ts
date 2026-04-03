@@ -162,4 +162,39 @@ describe("getSubscriptionStatus", () => {
     expect(status.tier).toBe("business");
     expect(status.subscriptionName).toBe("Business");
   });
+
+  describe("DEV_PLAN_OVERRIDE", () => {
+    it("returns overridden tier when env var is set", async () => {
+      process.env.DEV_PLAN_OVERRIDE = "business";
+
+      const admin = mockAdmin({
+        currentAppInstallation: { activeSubscriptions: [] },
+      });
+
+      const status = await getSubscriptionStatus(admin);
+
+      expect(status.tier).toBe("business");
+      expect(status.isActive).toBe(true);
+      expect(status.pairingLimit).toBe(3);
+      expect(status.subscriptionName).toContain("DEV");
+      expect(admin.graphql).not.toHaveBeenCalled();
+
+      delete process.env.DEV_PLAN_OVERRIDE;
+    });
+
+    it("ignores invalid override values", async () => {
+      process.env.DEV_PLAN_OVERRIDE = "invalid_tier";
+
+      const admin = mockAdmin({
+        currentAppInstallation: { activeSubscriptions: [] },
+      });
+
+      const status = await getSubscriptionStatus(admin);
+
+      expect(status.tier).toBe("free");
+      expect(admin.graphql).toHaveBeenCalled();
+
+      delete process.env.DEV_PLAN_OVERRIDE;
+    });
+  });
 });

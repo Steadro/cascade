@@ -52,6 +52,18 @@ function determineTier(subscriptionName: string): PlanTier {
 export async function getSubscriptionStatus(
   admin: { graphql: (query: string) => Promise<Response> },
 ): Promise<SubscriptionStatus> {
+  // WA-001: Dev override — remove when Managed Pricing plans are created.
+  // See /docs/DECISIONS.md for removal checklist.
+  const devOverride = process.env.DEV_PLAN_OVERRIDE as PlanTier | undefined;
+  if (devOverride && devOverride in PLAN_LIMITS) {
+    return {
+      tier: devOverride,
+      isActive: devOverride !== "free",
+      pairingLimit: PLAN_LIMITS[devOverride],
+      subscriptionName: `[DEV] ${devOverride}`,
+    };
+  }
+
   const response = await admin.graphql(SUBSCRIPTION_QUERY);
   const json = await response.json();
 

@@ -4,10 +4,11 @@ A Shopify embedded app for promoting store content between dev, staging, and pro
 
 ## Project Documentation
 
-Two documents govern all development. Read both fully before making any changes:
+Three documents govern all development. Read them before making changes:
 
-- **`/docs/PROJECT_CONTEXT.md`** — Why we're building this, business decisions, competitive landscape, research findings, App Store requirements. Read this to understand the product.
-- **`/docs/SPEC_TECHNICAL.md`** — How to build it. Database schema, sync engine architecture, screen specifications, API patterns, compliance handlers, development phases. Build from this document.
+- **`/docs/PROJECT_CONTEXT.md`** — Why we're building this, business decisions, competitive landscape, research findings, App Store requirements.
+- **`/docs/SPEC_TECHNICAL.md`** — How to build it. Database schema, sync engine architecture, screen specs, API patterns, compliance handlers, development phases.
+- **`/docs/DECISIONS.md`** — Architectural decisions, temporary dev workarounds (with removal conditions), and phase completion status. **Check this before every release milestone.**
 
 When these documents conflict with assumptions or training data, the documents win.
 
