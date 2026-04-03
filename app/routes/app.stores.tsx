@@ -17,7 +17,7 @@ import {
   removePairing,
 } from "../utils/pairing.server";
 
-const ALLOWED_LABELS = ["Development", "Staging", "QA", "Custom"] as const;
+const MAX_LABEL_LENGTH = 50;
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -45,9 +45,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return { ok: false, error: "Store domain is required" };
     }
 
-    const rawLabel = formData.get("label") as string;
-    const label = (ALLOWED_LABELS as readonly string[]).includes(rawLabel)
-      ? rawLabel
+    const rawLabel = ((formData.get("label") as string) ?? "").trim();
+    const label = rawLabel.length > 0
+      ? rawLabel.slice(0, MAX_LABEL_LENGTH)
       : "Development";
 
     let normalizedDomain: string;
@@ -216,16 +216,14 @@ export default function StoresPage() {
               onInput={(e: any) => setDomain(e.target.value)}
               helpText="Enter the myshopify.com domain of the store to pair"
             />
-            <s-select
+            <s-text-field
               label="Label"
+              placeholder="e.g. Development, Staging, QA"
               value={label}
-              onChange={(e: any) => setLabel(e.target.value)}
-            >
-              <option value="Development">Development</option>
-              <option value="Staging">Staging</option>
-              <option value="QA">QA</option>
-              <option value="Custom">Custom</option>
-            </s-select>
+              onInput={(e: any) => setLabel(e.target.value)}
+              helpText="A name for this environment"
+              maxLength={MAX_LABEL_LENGTH}
+            />
 
             {fetcher.data && !fetcher.data.ok && fetcher.state === "idle" && (
               <s-banner tone="critical">
