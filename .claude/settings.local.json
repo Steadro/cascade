@@ -13,7 +13,20 @@
       "Bash(git rebase:*)",
       "Bash(find .:*)",
       "Bash(rsync -a --exclude='.git' . /c/.dev/.app/cascade/)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "mcp__shopify-dev-mcp__introspect_graphql_schema",
+      "mcp__shopify-dev-mcp__search_docs_chunks",
+      "Bash(npx prisma:*)",
+      "Bash(tasklist)",
+      "Bash(npx tsc:*)",
+      "Bash(DATABASE_URL=\"file:./test.sqlite\" npx prisma migrate deploy)",
+      "Bash(cp:*)",
+      "Bash(npx vitest:*)",
+      "Bash(xargs cat:*)",
+      "mcp__shopify-dev-mcp__learn_shopify_api",
+      "Bash(node:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs"
     ]
   }
 }
