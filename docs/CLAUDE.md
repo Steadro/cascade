@@ -97,3 +97,5 @@ CLAUDE.md             # This file — read automatically every session
 - Shopify's Google SSO can loop if the connected Google account email doesn't match the Shopify account email. The accounts.shopify.com security settings control this.
 - Vitest runs test files in parallel by default. With SQLite (shared test database), this causes foreign key constraint failures. `fileParallelism: false` in vitest.config.ts fixes this.
 - `npx prisma generate` fails with EPERM on Windows when `query_engine-windows.dll.node` is locked by a running node process. Kill the dev server first.
+- Only one `shopify app dev` tunnel is needed for multi-store testing. The second store is installed manually via OAuth URL while the dev server is running. See "Multi-Store Development Testing" in SPEC_TECHNICAL.md.
+- First-launch onboarding: when a store has no pairings and no subscription, show a dismissible info banner recommending they install on their production store first for billing purposes.

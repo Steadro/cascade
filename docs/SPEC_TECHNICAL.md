@@ -193,6 +193,7 @@ Cascade
 **Purpose:** At-a-glance overview of paired stores and recent sync activity.
 
 **Content:**
+- First launch (no pairings, no subscription): Show a Polaris Banner (info tone) at the top: "We recommend installing Cascade on your production store first — that's where your subscription and billing will be managed. Dev and staging stores pair to it for free." This banner is dismissible and only shows when the store has no pairings and no active subscription.
 - Banner showing the current store's role (e.g., "This is your primary store with 2 paired environments")
 - If no pairings exist: empty state with call-to-action to pair a store
 - Card for each paired store showing: store name, label (Dev/Staging/etc), last sync timestamp, status
@@ -721,6 +722,40 @@ Each phase must follow the Build-Test-Verify loop defined in CLAUDE.md. A phase 
 - [ ] App Store compliance checklist pass
 - [ ] **Run full test suite one final time.** All must pass.
 - [ ] **Document what requires manual testing** for App Store review (install flow, billing flow, visual UI, multi-store sync with real data)
+
+---
+
+## Multi-Store Development Testing
+
+Only one `shopify app dev` instance is needed — the tunnel serves all stores that have the app installed.
+
+**Installing on a second store:**
+
+While `shopify app dev` is running, visit this URL in your browser (replace the store name and client ID):
+
+```
+https://admin.shopify.com/store/SECOND-STORE-NAME/oauth/install?client_id=YOUR_CLIENT_ID
+```
+
+For Cascade's current dev setup:
+```
+https://admin.shopify.com/store/steadro-prod-2/oauth/install?client_id=03cccdd9479bd45fe02e377e43b8c3b5
+```
+
+This triggers the OAuth install flow through the active tunnel. Both stores get session records in the local SQLite database.
+
+**How cross-store sync works in development:**
+
+Cross-store API calls use stored offline session tokens from the Prisma `Session` table — no second tunnel is needed. When Store A syncs with Store B, the app retrieves Store B's access token from the database and creates a direct GraphQL client for it.
+
+**Testing flow:**
+
+1. Run `shopify app dev` (creates tunnel, serves the app)
+2. Install on Store A (happens automatically via dev command)
+3. Install on Store B (via the OAuth URL above, while dev server is running)
+4. Open Cascade on Store A → Stores → Pair Store B
+5. Open Cascade on Store A → Sync → Select Store B → Preview Changes
+6. Verify the diff output matches the actual differences between the two stores
 
 ---
 
