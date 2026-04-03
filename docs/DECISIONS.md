@@ -34,21 +34,21 @@ Tracks architectural decisions, temporary workarounds, and cleanup items. Every 
 
 ## Dev Workarounds (Temporary — Must Be Removed)
 
-### WA-001: DEV_PLAN_OVERRIDE environment variable
+### WA-001: DEFAULT_TIER set to "business" (no billing configured yet)
 **Date:** 2026-04-02
 **Phase:** Added during Phase 3 testing
-**What:** Setting `DEV_PLAN_OVERRIDE=pro|business|enterprise` in the environment bypasses the Shopify subscription check and returns that tier directly.
-**Why:** Managed Pricing plans aren't set up in the Partner Dashboard yet. Without this, the app returns "free" tier on dev stores, which blocks pairing (limit: 0) and makes the sync feature untestable.
-**Where:** `app/utils/subscription.server.ts` — checked at the top of `getSubscriptionStatus()`.
-**Risk:** If this leaks to production, all merchants get free access to paid features.
-**Removal condition:** Remove when Managed Pricing plans are created in the Partner Dashboard and at least one dev store has an active test subscription.
+**What:** The `DEFAULT_TIER` constant in `subscription.server.ts` is set to `"business"` instead of `"free"`. When no active Shopify subscription is found, every store gets business-tier access (3 paired stores, full sync).
+**Why:** Managed Pricing plans aren't created in the Partner Dashboard yet. The Shopify subscription query always returns empty, so without this every store is locked to free tier (0 pairings), making the app untestable and unusable.
+**Where:** `app/utils/subscription.server.ts` — `DEFAULT_TIER` constant near the top of the file.
+**Risk:** All merchants get free access to business-tier features until this is changed. Acceptable during development since the app is not yet on the App Store.
+**Removal condition:** Change `DEFAULT_TIER` back to `"free"` when Managed Pricing plans are created and billing is live.
 **Removal checklist:**
 - [ ] Create Pro, Business, Enterprise plans in Partner Dashboard
-- [ ] Activate a test subscription on the dev store
-- [ ] Verify `getSubscriptionStatus` returns the correct tier without the override
-- [ ] Delete the `DEV_PLAN_OVERRIDE` check from `subscription.server.ts`
-- [ ] Remove `DEV_PLAN_OVERRIDE` from `.env` and `.env.example`
-- [ ] Switch to plan ID-based tier detection (AD-003)
+- [ ] Activate a test subscription on a dev store
+- [ ] Change `DEFAULT_TIER` from `"business"` to `"free"` in `subscription.server.ts`
+- [ ] Update tests that expect "business" as the default (marked with WA-001 comments)
+- [ ] Verify free-tier stores see upgrade prompts and pairing is blocked
+- [ ] Switch to plan ID-based tier detection (AD-003 / WA-002)
 
 ### WA-002: Plan tier by name instead of ID
 **Date:** 2026-04-02

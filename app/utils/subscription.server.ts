@@ -49,21 +49,15 @@ function determineTier(subscriptionName: string): PlanTier {
   return "free";
 }
 
+// WA-001: Default tier when no subscription is found.
+// Set to "business" until Managed Pricing plans are created in Partner Dashboard.
+// Change to "free" before App Store submission.
+// See /docs/DECISIONS.md for removal checklist.
+const DEFAULT_TIER: PlanTier = "business";
+
 export async function getSubscriptionStatus(
   admin: { graphql: (query: string) => Promise<Response> },
 ): Promise<SubscriptionStatus> {
-  // WA-001: Dev override — remove when Managed Pricing plans are created.
-  // See /docs/DECISIONS.md for removal checklist.
-  const devOverride = process.env.DEV_PLAN_OVERRIDE as PlanTier | undefined;
-  if (devOverride && devOverride in PLAN_LIMITS) {
-    return {
-      tier: devOverride,
-      isActive: devOverride !== "free",
-      pairingLimit: PLAN_LIMITS[devOverride],
-      subscriptionName: `[DEV] ${devOverride}`,
-    };
-  }
-
   const response = await admin.graphql(SUBSCRIPTION_QUERY);
   const json = await response.json();
 
@@ -76,9 +70,9 @@ export async function getSubscriptionStatus(
 
   if (!activeSub) {
     return {
-      tier: "free",
-      isActive: false,
-      pairingLimit: PLAN_LIMITS.free,
+      tier: DEFAULT_TIER,
+      isActive: DEFAULT_TIER !== "free",
+      pairingLimit: PLAN_LIMITS[DEFAULT_TIER],
       subscriptionName: null,
     };
   }

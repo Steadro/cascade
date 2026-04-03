@@ -10,20 +10,24 @@ function mockAdmin(responseData: any) {
 }
 
 describe("getSubscriptionStatus", () => {
-  it("returns free tier when no active subscriptions", async () => {
+  // WA-001: DEFAULT_TIER is "business" until Managed Pricing is configured.
+  // These two tests reflect the current default. When DEFAULT_TIER is changed
+  // back to "free", update these to expect "free" tier.
+
+  it("returns default tier (business) when no active subscriptions", async () => {
     const admin = mockAdmin({
       currentAppInstallation: { activeSubscriptions: [] },
     });
 
     const status = await getSubscriptionStatus(admin);
 
-    expect(status.tier).toBe("free");
-    expect(status.isActive).toBe(false);
-    expect(status.pairingLimit).toBe(0);
+    expect(status.tier).toBe("business");
+    expect(status.isActive).toBe(true);
+    expect(status.pairingLimit).toBe(3);
     expect(status.subscriptionName).toBeNull();
   });
 
-  it("returns free tier when subscription is not ACTIVE", async () => {
+  it("returns default tier (business) when subscription is not ACTIVE", async () => {
     const admin = mockAdmin({
       currentAppInstallation: {
         activeSubscriptions: [
@@ -34,8 +38,8 @@ describe("getSubscriptionStatus", () => {
 
     const status = await getSubscriptionStatus(admin);
 
-    expect(status.tier).toBe("free");
-    expect(status.isActive).toBe(false);
+    expect(status.tier).toBe("business");
+    expect(status.isActive).toBe(true);
   });
 
   it("detects Pro tier", async () => {
@@ -105,7 +109,12 @@ describe("getSubscriptionStatus", () => {
     const admin = mockAdmin({
       currentAppInstallation: {
         activeSubscriptions: [
-          { id: "1", name: "cascade pro plan", status: "ACTIVE", lineItems: [] },
+          {
+            id: "1",
+            name: "cascade pro plan",
+            status: "ACTIVE",
+            lineItems: [],
+          },
         ],
       },
     });
@@ -143,8 +152,8 @@ describe("getSubscriptionStatus", () => {
 
     const status = await getSubscriptionStatus(admin);
 
-    expect(status.tier).toBe("free");
-    expect(status.isActive).toBe(false);
+    expect(status.tier).toBe("business");
+    expect(status.isActive).toBe(true);
   });
 
   it("picks first ACTIVE subscription when multiple exist", async () => {
@@ -161,40 +170,5 @@ describe("getSubscriptionStatus", () => {
 
     expect(status.tier).toBe("business");
     expect(status.subscriptionName).toBe("Business");
-  });
-
-  describe("DEV_PLAN_OVERRIDE", () => {
-    it("returns overridden tier when env var is set", async () => {
-      process.env.DEV_PLAN_OVERRIDE = "business";
-
-      const admin = mockAdmin({
-        currentAppInstallation: { activeSubscriptions: [] },
-      });
-
-      const status = await getSubscriptionStatus(admin);
-
-      expect(status.tier).toBe("business");
-      expect(status.isActive).toBe(true);
-      expect(status.pairingLimit).toBe(3);
-      expect(status.subscriptionName).toContain("DEV");
-      expect(admin.graphql).not.toHaveBeenCalled();
-
-      delete process.env.DEV_PLAN_OVERRIDE;
-    });
-
-    it("ignores invalid override values", async () => {
-      process.env.DEV_PLAN_OVERRIDE = "invalid_tier";
-
-      const admin = mockAdmin({
-        currentAppInstallation: { activeSubscriptions: [] },
-      });
-
-      const status = await getSubscriptionStatus(admin);
-
-      expect(status.tier).toBe("free");
-      expect(admin.graphql).toHaveBeenCalled();
-
-      delete process.env.DEV_PLAN_OVERRIDE;
-    });
   });
 });
