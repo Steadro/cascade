@@ -32,3 +32,53 @@ model Session {
   refreshToken        String?
   refreshTokenExpires DateTime?
 }
+
+model StorePairing {
+  id          String   @id @default(cuid())
+  primaryShop String
+  pairedShop  String
+  label       String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  syncJobs     SyncJob[]
+  resourceMaps ResourceMap[]
+
+  @@unique([primaryShop, pairedShop])
+}
+
+model ResourceMap {
+  id           String       @id @default(cuid())
+  pairingId    String
+  pairing      StorePairing @relation(fields: [pairingId], references: [id], onDelete: Cascade)
+  resourceType String
+  sourceId     String
+  targetId     String
+  handle       String?
+  lastSyncedAt DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@unique([pairingId, resourceType, sourceId])
+  @@index([pairingId, resourceType])
+  @@index([pairingId, resourceType, handle])
+}
+
+model SyncJob {
+  id             String       @id @default(cuid())
+  pairingId      String
+  pairing        StorePairing @relation(fields: [pairingId], references: [id], onDelete: Cascade)
+  sourceShop     String
+  targetShop     String
+  resourceTypes  String
+  status         String       @default("pending")
+  progress       Int          @default(0)
+  totalItems     Int          @default(0)
+  processedItems Int          @default(0)
+  errors         String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}

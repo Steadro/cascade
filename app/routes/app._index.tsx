@@ -1,250 +1,157 @@
-import { useEffect } from "react";
-import type {
-  ActionFunctionArgs,
-  HeadersFunction,
-  LoaderFunctionArgs,
-} from "react-router";
-import { useFetcher } from "react-router";
-import { useAppBridge } from "@shopify/app-bridge-react";
-import { authenticate } from "../shopify.server";
+import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
+import { useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+import { authenticate } from "../shopify.server";
+import { getSubscriptionStatus } from "../utils/subscription.server";
+import { getDashboardData } from "../utils/pairing.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const subscription = await getSubscriptionStatus(admin);
+  const dashboard = await getDashboardData(shop);
 
-  return null;
-};
-
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
-  const color = ["Red", "Orange", "Yellow", "Green"][
-    Math.floor(Math.random() * 4)
-  ];
-  const response = await admin.graphql(
-    `#graphql
-      mutation populateProduct($product: ProductCreateInput!) {
-        productCreate(product: $product) {
-          product {
-            id
-            title
-            handle
-            status
-            variants(first: 10) {
-              edges {
-                node {
-                  id
-                  price
-                  barcode
-                  createdAt
-                }
-              }
-            }
-          }
-        }
-      }`,
-    {
-      variables: {
-        product: {
-          title: `${color} Snowboard`,
-        },
-      },
-    },
-  );
-  const responseJson = await response.json();
-
-  const product = responseJson.data!.productCreate!.product!;
-  const variantId = product.variants.edges[0]!.node!.id!;
-
-  const variantResponse = await admin.graphql(
-    `#graphql
-    mutation shopifyReactRouterTemplateUpdateVariant($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-      productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-        productVariants {
-          id
-          price
-          barcode
-          createdAt
-        }
-      }
-    }`,
-    {
-      variables: {
-        productId: product.id,
-        variants: [{ id: variantId, price: "100.00" }],
-      },
-    },
-  );
-
-  const variantResponseJson = await variantResponse.json();
+  const recentJobsWithParsedTypes = dashboard.recentJobs.map((job) => {
+    let parsedTypes: string[];
+    try {
+      const parsed = JSON.parse(job.resourceTypes);
+      parsedTypes = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      parsedTypes = [];
+    }
+    return { ...job, resourceTypesList: parsedTypes };
+  });
 
   return {
-    product: responseJson!.data!.productCreate!.product,
-    variant:
-      variantResponseJson!.data!.productVariantsBulkUpdate!.productVariants,
+    shop,
+    tier: subscription.tier,
+    isActive: subscription.isActive,
+    ...dashboard,
+    recentJobs: recentJobsWithParsedTypes,
   };
 };
 
+const STATUS_TONES: Record<string, string> = {
+  completed: "success",
+  failed: "critical",
+  running: "info",
+  pending: "attention",
+  cancelled: "warning",
+};
+
 export default function Index() {
-  const fetcher = useFetcher<typeof action>();
+  const { shop, tier, isActive, pairings, recentJobs, hasPairings } =
+    useLoaderData<typeof loader>();
 
-  const shopify = useAppBridge();
-  const isLoading =
-    ["loading", "submitting"].includes(fetcher.state) &&
-    fetcher.formMethod === "POST";
-
-  useEffect(() => {
-    if (fetcher.data?.product?.id) {
-      shopify.toast.show("Product created");
-    }
-  }, [fetcher.data?.product?.id, shopify]);
-
-  const generateProduct = () => fetcher.submit({}, { method: "POST" });
+  const primaryPairings = pairings.filter((p) => p.role === "primary");
+  const pairedWith = pairings.find((p) => p.role === "paired");
 
   return (
-    <s-page heading="Shopify app template">
-      <s-button slot="primary-action" onClick={generateProduct}>
-        Generate a product
-      </s-button>
+    <s-page heading="Cascade">
+      {hasPairings && primaryPairings.length > 0 && (
+        <s-banner>
+          <s-text>
+            This is your primary store with {primaryPairings.length} paired
+            environment(s).
+          </s-text>
+        </s-banner>
+      )}
 
-      <s-section heading="Congrats on creating a new Shopify app 🎉">
-        <s-paragraph>
-          This embedded app template uses{" "}
-          <s-link
-            href="https://shopify.dev/docs/apps/tools/app-bridge"
-            target="_blank"
-          >
-            App Bridge
-          </s-link>{" "}
-          interface examples like an{" "}
-          <s-link href="/app/additional">additional page in the app nav</s-link>
-          , as well as an{" "}
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql"
-            target="_blank"
-          >
-            Admin GraphQL
-          </s-link>{" "}
-          mutation demo, to provide a starting point for app development.
-        </s-paragraph>
-      </s-section>
-      <s-section heading="Get started with products">
-        <s-paragraph>
-          Generate a product with GraphQL and get the JSON output for that
-          product. Learn more about the{" "}
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql/latest/mutations/productCreate"
-            target="_blank"
-          >
-            productCreate
-          </s-link>{" "}
-          mutation in our API references.
-        </s-paragraph>
-        <s-stack direction="inline" gap="base">
-          <s-button
-            onClick={generateProduct}
-            {...(isLoading ? { loading: true } : {})}
-          >
-            Generate a product
-          </s-button>
-          {fetcher.data?.product && (
-            <s-button
-              onClick={() => {
-                shopify.intents.invoke?.("edit:shopify/Product", {
-                  value: fetcher.data?.product?.id,
-                });
-              }}
-              target="_blank"
-              variant="tertiary"
-            >
-              Edit product
-            </s-button>
-          )}
-        </s-stack>
-        {fetcher.data?.product && (
-          <s-section heading="productCreate mutation">
+      {hasPairings && pairedWith && primaryPairings.length === 0 && (
+        <s-banner tone="info">
+          <s-text>
+            This store is paired with {pairedWith.primaryShop}. Manage pairings
+            and billing from the primary store.
+          </s-text>
+        </s-banner>
+      )}
+
+      {!isActive && (
+        <s-banner tone="warning">
+          <s-text>
+            You&apos;re on the Free plan. Upgrade to start syncing content
+            between stores.
+          </s-text>
+        </s-banner>
+      )}
+
+      {!hasPairings && (
+        <s-section heading="Get started">
+          <s-stack direction="block" gap="base">
+            <s-text>
+              No stores paired yet. Pair a dev or staging store to start syncing
+              content.
+            </s-text>
+            <s-button href="/app/stores">Pair a store</s-button>
+          </s-stack>
+        </s-section>
+      )}
+
+      {hasPairings && (
+        <>
+          <s-section heading="Paired Stores">
             <s-stack direction="block" gap="base">
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="subdued"
-              >
-                <pre style={{ margin: 0 }}>
-                  <code>{JSON.stringify(fetcher.data.product, null, 2)}</code>
-                </pre>
-              </s-box>
-
-              <s-heading>productVariantsBulkUpdate mutation</s-heading>
-              <s-box
-                padding="base"
-                borderWidth="base"
-                borderRadius="base"
-                background="subdued"
-              >
-                <pre style={{ margin: 0 }}>
-                  <code>{JSON.stringify(fetcher.data.variant, null, 2)}</code>
-                </pre>
-              </s-box>
+              {pairings.map((pairing) => (
+                <s-card key={pairing.id}>
+                  <s-stack direction="block" gap="tight">
+                    <s-text variant="headingSm">
+                      {pairing.role === "primary"
+                        ? pairing.pairedShop
+                        : pairing.primaryShop}
+                    </s-text>
+                    <s-stack direction="inline" gap="tight">
+                      {pairing.label && <s-badge>{pairing.label}</s-badge>}
+                      <s-badge
+                        tone={
+                          pairing.status === "active" ? "success" : "critical"
+                        }
+                      >
+                        {pairing.status}
+                      </s-badge>
+                    </s-stack>
+                    <s-text variant="bodySm" tone="subdued">
+                      {pairing.lastSyncedAt
+                        ? `Last synced: ${new Date(pairing.lastSyncedAt).toLocaleDateString()}`
+                        : "Never synced"}
+                    </s-text>
+                  </s-stack>
+                </s-card>
+              ))}
             </s-stack>
           </s-section>
-        )}
-      </s-section>
 
-      <s-section slot="aside" heading="App template specs">
-        <s-paragraph>
-          <s-text>Framework: </s-text>
-          <s-link href="https://reactrouter.com/" target="_blank">
-            React Router
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>Interface: </s-text>
-          <s-link
-            href="https://shopify.dev/docs/api/app-home/using-polaris-components"
-            target="_blank"
-          >
-            Polaris web components
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>API: </s-text>
-          <s-link
-            href="https://shopify.dev/docs/api/admin-graphql"
-            target="_blank"
-          >
-            GraphQL
-          </s-link>
-        </s-paragraph>
-        <s-paragraph>
-          <s-text>Database: </s-text>
-          <s-link href="https://www.prisma.io/" target="_blank">
-            Prisma
-          </s-link>
-        </s-paragraph>
-      </s-section>
-
-      <s-section slot="aside" heading="Next steps">
-        <s-unordered-list>
-          <s-list-item>
-            Build an{" "}
-            <s-link
-              href="https://shopify.dev/docs/apps/getting-started/build-app-example"
-              target="_blank"
-            >
-              example app
-            </s-link>
-          </s-list-item>
-          <s-list-item>
-            Explore Shopify&apos;s API with{" "}
-            <s-link
-              href="https://shopify.dev/docs/apps/tools/graphiql-admin-api"
-              target="_blank"
-            >
-              GraphiQL
-            </s-link>
-          </s-list-item>
-        </s-unordered-list>
-      </s-section>
+          <s-section heading="Recent Activity">
+            {recentJobs.length === 0 ? (
+              <s-text tone="subdued">No sync jobs yet.</s-text>
+            ) : (
+              <s-stack direction="block" gap="base">
+                {recentJobs.map((job) => (
+                  <s-card key={job.id}>
+                    <s-stack direction="inline" gap="base">
+                      <s-stack direction="block" gap="tight">
+                        <s-text variant="bodySm">
+                          {job.sourceShop} → {job.targetShop}
+                        </s-text>
+                        <s-text variant="bodySm" tone="subdued">
+                            {job.resourceTypesList.join(", ")}
+                        </s-text>
+                      </s-stack>
+                      <s-stack direction="block" gap="tight">
+                        <s-badge tone={STATUS_TONES[job.status] ?? "info"}>
+                          {job.status}
+                        </s-badge>
+                        <s-text variant="bodySm" tone="subdued">
+                          {new Date(job.createdAt).toLocaleDateString()}
+                        </s-text>
+                      </s-stack>
+                    </s-stack>
+                  </s-card>
+                ))}
+              </s-stack>
+            )}
+          </s-section>
+        </>
+      )}
     </s-page>
   );
 }
