@@ -98,4 +98,6 @@ CLAUDE.md             # This file — read automatically every session
 - Vitest runs test files in parallel by default. With SQLite (shared test database), this causes foreign key constraint failures. `fileParallelism: false` in vitest.config.ts fixes this.
 - `npx prisma generate` fails with EPERM on Windows when `query_engine-windows.dll.node` is locked by a running node process. Kill the dev server first.
 - `shopify app dev` only overrides the app URL for one store. For multi-store testing, use ngrok with a static domain and pass `--tunnel-url` to `shopify app dev`. Both stores then resolve to the same local server.
-- First-launch onboarding: when a store has no pairings and no subscription, show a dismissible info banner recommending they install on their production store first for billing purposes.
+- ngrok static domain for this project: `corrinne-isoelectric-judy.ngrok-free.dev`
+- Always start ngrok before `shopify app dev`. Always use port 3000.
+- First-launch onboarding: when a store has no pairings and no subscription, show a dismissible Polaris info banner recommending they install on their production store first for billing purposes.

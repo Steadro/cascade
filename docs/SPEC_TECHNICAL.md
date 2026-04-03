@@ -727,56 +727,25 @@ Each phase must follow the Build-Test-Verify loop defined in CLAUDE.md. A phase 
 
 ## Multi-Store Development Testing
 
-`shopify app dev` creates a Cloudflare tunnel that only overrides the app URL for the single dev store specified in the TOML. A second store still sees the default `https://example.com`, which blocks embedded app loading. To test with multiple stores, use ngrok with a stable static domain.
+Only one instance of `shopify app dev` is needed. A stable ngrok tunnel serves all stores.
 
-### Prerequisites
+**Setup:**
+1. Start ngrok: `ngrok http 3000 --domain=corrinne-isoelectric-judy.ngrok-free.dev`
+2. Start the app: `shopify app dev --tunnel-url=https://corrinne-isoelectric-judy.ngrok-free.dev`
+3. First store is installed automatically by `shopify app dev`
+4. Second store is installed by visiting: `https://admin.shopify.com/store/SECOND-STORE-HANDLE/oauth/install?client_id=CLIENT_ID` (find client_id in shopify.app.toml)
+5. Both stores now have session records in the local SQLite database
 
-1. Install ngrok and create a free account at ngrok.com
-2. Authenticate: `ngrok config add-authtoken YOUR_TOKEN`
-3. Claim a free static domain from the ngrok dashboard (Domains section) — e.g., `something-random.ngrok-free.app`
+**How cross-store sync works at the server level:**
+- The merchant opens Cascade from Store A's admin (embedded app loads via ngrok tunnel)
+- Store A's session comes from the current request context
+- When syncing to Store B, the server looks up Store B's offline session token from the Prisma Session table
+- API calls to Store B use that stored token — no second tunnel or browser session needed
 
-### Running the dev environment
-
-Start two terminals:
-
-```bash
-# Terminal 1: ngrok tunnel (must start first)
-ngrok http 3000 --domain=YOUR-STATIC-DOMAIN.ngrok-free.app
-
-# Terminal 2: Shopify dev server using the ngrok tunnel
-shopify app dev --tunnel-url=https://YOUR-STATIC-DOMAIN.ngrok-free.app
-```
-
-Both stores now resolve to the same stable ngrok URL → local dev server. The tunnel URL persists across restarts as long as the same static domain is used.
-
-### Installing on the second store
-
-While both ngrok and the dev server are running, visit:
-
-```
-https://admin.shopify.com/store/SECOND-STORE-HANDLE/oauth/install?client_id=YOUR_CLIENT_ID
-```
-
-For Cascade's current dev setup:
-```
-https://admin.shopify.com/store/steadro-prod-2/oauth/install?client_id=03cccdd9479bd45fe02e377e43b8c3b5
-```
-
-This triggers the OAuth install flow through the ngrok tunnel. Both stores get session records in the local SQLite database.
-
-### How cross-store sync works in development
-
-Cross-store API calls use stored offline session tokens from the Prisma `Session` table — no second tunnel is needed. When Store A syncs with Store B, the app retrieves Store B's access token from the database and creates a direct GraphQL client for it.
-
-### Testing flow
-
-1. Start ngrok with your static domain
-2. Start `shopify app dev --tunnel-url=<ngrok-url>`
-3. Store A is installed automatically via the dev command
-4. Install on Store B via the OAuth URL above (while both ngrok and dev server are running)
-5. Open Cascade on Store A → Stores → Pair Store B
-6. Open Cascade on Store A → Sync → Select Store B → Preview Changes
-7. Verify the diff output matches the actual differences between the two stores
+**Do NOT:**
+- Do not run two instances of `shopify app dev`
+- Do not update app URLs in the Dev Dashboard manually — `shopify app dev --tunnel-url` handles this
+- Do not use the Cloudflare tunnel (it's per-store only) — always use ngrok for multi-store testing
 
 ---
 
