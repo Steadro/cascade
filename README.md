@@ -44,7 +44,7 @@ Sync order is enforced: Metafield definitions → Products → Collections → P
 | Framework | [React Router v7](https://reactrouter.com/) |
 | Runtime | Node.js 20+ |
 | ORM | [Prisma 6](https://www.prisma.io/) |
-| Database | SQLite (dev) / PostgreSQL (prod) |
+| Database | PostgreSQL ([DigitalOcean Managed](https://www.digitalocean.com/products/managed-databases-postgresql)) |
 | UI | [Shopify Polaris](https://polaris.shopify.com/) + [App Bridge](https://shopify.dev/docs/api/app-bridge-library) |
 | API | Shopify GraphQL Admin API |
 | Build | [Vite 6](https://vitejs.dev/) |
@@ -71,8 +71,12 @@ cd cascade
 # Install dependencies
 npm install
 
-# Set up the database
-npx prisma migrate dev
+# Configure environment
+cp .env.example .env
+# Edit .env with your DATABASE_URL, SHOPIFY_API_KEY, SHOPIFY_API_SECRET, SHOPIFY_APP_URL
+
+# Set up the database (requires PostgreSQL connection)
+npx prisma migrate deploy
 npx prisma generate
 ```
 
@@ -85,6 +89,8 @@ shopify app dev
 Press **P** to open the app URL. Install on your development store to start working.
 
 ### Running Tests
+
+Tests run against PostgreSQL. `DATABASE_URL` (or `TEST_DATABASE_URL`) must be set in `.env`.
 
 ```bash
 npm test                  # All tests
@@ -225,13 +231,15 @@ GitHub Actions runs on every push and PR:
 
 ## Deployment
 
-### Application Storage
+### Database
 
-This app uses Prisma with SQLite in development. For production, switch to PostgreSQL by updating the `datasource` in `prisma/schema.prisma`.
+PostgreSQL is the only database. The Prisma schema targets PostgreSQL exclusively.
 
-| Database | Recommended Hosts |
-|----------|------------------|
-| PostgreSQL | [DigitalOcean](https://www.digitalocean.com/products/managed-databases-postgresql), [Amazon Aurora](https://aws.amazon.com/rds/aurora/), [Google Cloud SQL](https://cloud.google.com/sql/docs/postgres) |
+| Environment | Database |
+|-------------|----------|
+| Development | PostgreSQL (local or DigitalOcean managed) |
+| Testing | PostgreSQL (same instance or dedicated test DB via `TEST_DATABASE_URL`) |
+| Production | [DigitalOcean Managed PostgreSQL](https://www.digitalocean.com/products/managed-databases-postgresql) |
 
 ### Hosting
 

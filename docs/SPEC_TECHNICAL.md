@@ -1,7 +1,7 @@
 # Cascade — Technical Specification
 
 **Version:** 1.0
-**Last updated:** April 2, 2026
+**Last updated:** April 9, 2026
 **Status:** Ready for development
 
 Cascade is a Shopify embedded app that lets enterprise merchants promote store content between dev, staging, and production environments. This document is the single source of truth for building it. It contains every architectural decision, data model, API pattern, UI screen, and constraint. Build from this document.
@@ -17,7 +17,7 @@ These are non-negotiable. Do not deviate from these under any circumstances.
 3. **Polaris components for all UI.** Use Shopify's Polaris design system. No custom UI frameworks.
 4. **Session token authentication.** Short-lived JWTs, 1-minute lifetime, HS256. No third-party cookies, no localStorage for auth. Must work in Chrome incognito.
 5. **Shopify managed installation.** Configured in `shopify.app.toml`. No custom OAuth install flow.
-6. **React Router v7 + Node.js + Prisma.** SQLite for local dev, PostgreSQL for production. This is the scaffolded stack — do not change it.
+6. **React Router v7 + Node.js + Prisma.** PostgreSQL for all environments (dev, test, production). This is the scaffolded stack — do not change it.
 7. **Three mandatory compliance webhooks.** `customers/data_request`, `customers/redact`, `shop/redact`. Must validate HMAC signatures and return 200. Missing these = App Store rejection.
 8. **Managed Pricing for billing.** Plans defined in Partner Dashboard, not in code. No Billing API code. App only needs to check subscription status and redirect to the Shopify-hosted plan page.
 9. **Use Context7 MCP** to fetch current documentation for Shopify APIs, Polaris, React Router, Prisma, and @shopify/shopify-app-js before writing any code that uses those libraries. Do not rely on training data for API signatures or method names.
@@ -31,8 +31,7 @@ These are non-negotiable. Do not deviate from these under any circumstances.
 | Framework | React Router v7 (Shopify app template) |
 | Runtime | Node.js |
 | ORM | Prisma |
-| Database (dev) | SQLite |
-| Database (prod) | PostgreSQL (DigitalOcean managed) |
+| Database | PostgreSQL (DigitalOcean managed — all environments) |
 | UI | Shopify Polaris + App Bridge |
 | API | Shopify GraphQL Admin API |
 | Hosting | DigitalOcean App Platform |
@@ -734,7 +733,7 @@ Only one instance of `shopify app dev` is needed. A stable ngrok tunnel serves a
 2. Start the app: `shopify app dev --tunnel-url=https://corrinne-isoelectric-judy.ngrok-free.dev`
 3. First store is installed automatically by `shopify app dev`
 4. Second store is installed by visiting: `https://admin.shopify.com/store/SECOND-STORE-HANDLE/oauth/install?client_id=CLIENT_ID` (find client_id in shopify.app.toml)
-5. Both stores now have session records in the local SQLite database
+5. Both stores now have session records in the PostgreSQL database
 
 **How cross-store sync works at the server level:**
 - The merchant opens Cascade from Store A's admin (embedded app loads via ngrok tunnel)

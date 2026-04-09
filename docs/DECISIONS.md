@@ -30,6 +30,12 @@ Tracks architectural decisions, temporary workarounds, and cleanup items. Every 
 **Why:** Simplest API — direct function call with explicit parameters. No dependency on framework internals. Works from any context (routes, background jobs).
 **Trade-off:** Different interface than `authenticate.admin()` — resolved via `wrapAuthAdmin()` adapter that normalizes both to `StoreClient`.
 
+### AD-005: PostgreSQL for all environments (Phase 3 → Production)
+**Date:** 2026-04-09
+**Decision:** Migrate from SQLite (dev) / PostgreSQL (prod) to PostgreSQL exclusively for all environments (dev, test, production).
+**Why:** The DigitalOcean deployment requires PostgreSQL. Running SQLite locally masked real PostgreSQL behavior in tests (constraint differences, type coercions). A single database engine eliminates dev/prod parity issues.
+**Trade-off:** Developers need a running PostgreSQL instance for local development and testing. Acceptable — DigitalOcean managed DB is already provisioned.
+
 ---
 
 ## Dev Workarounds (Temporary — Must Be Removed)
@@ -67,5 +73,35 @@ Tracks architectural decisions, temporary workarounds, and cleanup items. Every 
 | 1: Foundation | Complete | 32 | `d03427c` |
 | 2: Store Pairing | Complete | 80 (cumulative) | `d03427c` |
 | 3: Sync Read & Diff | Complete | 112 (cumulative) | `5ef50f2` |
+| 3.5: PostgreSQL migration + DB validation | Complete | 112 (all passing on PG) | — |
 | 4: Sync Transform & Execute | Not started | — | — |
 | 5: History & Polish | Not started | — | — |
+
+---
+
+## Phase 4 Handoff
+
+**Status as of 2026-04-09:** Phases 1–3 are complete. PostgreSQL is validated and all 112 tests pass against DigitalOcean managed PostgreSQL. The codebase is ready for Phase 4.
+
+**What Phase 4 covers** (from SPEC_TECHNICAL.md):
+- ID remapping using ResourceMap (cross-store GID translation)
+- CDN URL rewriting for HTML content (Shopify CDN domains differ per store)
+- Mutation execution for each resource type (productSet, collectionCreate/Update, pageCreate/Update, etc.)
+- ResourceMap updates after successful creates (persist new GID mappings)
+- Progress tracking and SyncJob status updates (pending → running → completed/failed)
+- Execution progress UI
+
+**What's already in place:**
+- Sync engine reads source and target stores (reader.server.ts)
+- Handle-based matcher resolves cross-store resources (matcher.server.ts)
+- Diff engine detects create/update/skip changes (diff.server.ts)
+- Preview UI renders diffs before sync
+- ResourceMap table stores GID mappings
+- SyncJob table tracks job state
+- All tested against PostgreSQL
+
+**Key dependencies for Phase 4:**
+- `productSet` mutation must include ALL variants (AD in SPEC — omitted variants get deleted)
+- Sync order: metafield definitions → products → collections → pages → blogs → menus → redirects
+- CDN URL rewriting must handle `cdn.shopify.com/s/files/...` patterns in HTML content (pages, blog posts, metafields)
+- `createAdminApiClient` is used for cross-store API calls (AD-004)
