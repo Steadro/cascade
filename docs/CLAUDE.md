@@ -65,17 +65,19 @@ If Context7 doesn't have docs for a specific library, say so and use web search 
 
 - React Router v7 (Shopify app template — NOT legacy Remix)
 - Node.js
-- Prisma ORM (SQLite dev / PostgreSQL prod)
+- Prisma ORM (PostgreSQL — DigitalOcean managed in production, local or remote for dev)
 - Shopify Polaris + App Bridge
 - Shopify GraphQL Admin API
 
 ## Dev Commands
 
 ```bash
-shopify app dev                    # Start dev server with tunnel
-npx prisma migrate dev             # Run database migrations
+shopify app dev                    # Start dev server with tunnel (single-store local dev)
+npx prisma migrate dev             # Run database migrations (requires DATABASE_URL)
 npx prisma generate                # Regenerate Prisma client
 npx prisma studio                  # Browse database
+npm run build                      # Production build
+npm run start                      # Serve production build (PORT env var, default 8080)
 ```
 
 ## Structure
@@ -86,8 +88,22 @@ npx prisma studio                  # Browse database
 /prisma               # Database schema and migrations
 /extensions           # Shopify app extensions (if any)
 shopify.app.toml      # Shopify app configuration
+Dockerfile            # Production container (DigitalOcean App Platform)
+.env.example          # Required environment variables
 CLAUDE.md             # This file — read automatically every session
 ```
+
+## Deployment
+
+**Platform:** DigitalOcean App Platform + managed PostgreSQL (steadro-cascade-postgresql-dev, NYC1, PostgreSQL 18).
+
+**Key facts:**
+- PostgreSQL is the only database. SQLite is no longer used anywhere.
+- Port 8080 is required by DigitalOcean App Platform.
+- `Dockerfile` at repo root handles the production build. It runs `prisma generate` at build time and `prisma migrate deploy` at container start.
+- `DATABASE_URL` must be set as an env var pointing to the managed PostgreSQL instance (with `?sslmode=require`).
+- Multi-store testing uses the DigitalOcean deployment (permanent URL), not local tunnels. Both dev stores install against the deployed app URL.
+- Local single-store dev still uses `shopify app dev` with the default Cloudflare tunnel — no changes to that workflow.
 
 ## Known Gotchas
 
@@ -95,9 +111,8 @@ CLAUDE.md             # This file — read automatically every session
 - The repo was initially scaffolded from the legacy Remix template. It has been corrected to the React Router template. Do not reference Remix patterns — use React Router v7 patterns.
 - `SHOPIFY_CLI_PARTNERS_TOKEN` env var works for `shopify app config link` but breaks `shopify app dev` (401 on organization API). Must be unset before running `shopify app dev`.
 - Shopify's Google SSO can loop if the connected Google account email doesn't match the Shopify account email. The accounts.shopify.com security settings control this.
-- Vitest runs test files in parallel by default. With SQLite (shared test database), this causes foreign key constraint failures. `fileParallelism: false` in vitest.config.ts fixes this.
+- Vitest runs test files in parallel by default. With a shared test database, this can cause constraint failures. `fileParallelism: false` in vitest.config.ts fixes this.
 - `npx prisma generate` fails with EPERM on Windows when `query_engine-windows.dll.node` is locked by a running node process. Kill the dev server first.
-- `shopify app dev` only overrides the app URL for one store. For multi-store testing, use ngrok with a static domain and pass `--tunnel-url` to `shopify app dev`. Both stores then resolve to the same local server.
-- ngrok static domain for this project: `corrinne-isoelectric-judy.ngrok-free.dev`
-- Always start ngrok before `shopify app dev`. Always use port 3000.
+- `shopify app dev` only overrides the app URL for one store. Multi-store testing now uses the DigitalOcean deployment — both stores install against the deployed app URL. Local dev with `shopify app dev` is for single-store work only.
+- ngrok is blocked at the network level (SSL/TLS interception). Do not attempt ngrok-based multi-store testing — use the DigitalOcean deployment instead.
 - First-launch onboarding: when a store has no pairings and no subscription, show a dismissible Polaris info banner recommending they install on their production store first for billing purposes.
