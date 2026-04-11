@@ -726,25 +726,34 @@ Each phase must follow the Build-Test-Verify loop defined in CLAUDE.md. A phase 
 
 ## Multi-Store Development Testing
 
-Only one instance of `shopify app dev` is needed. A stable ngrok tunnel serves all stores.
+Multi-store testing runs against the **DigitalOcean App Platform deployment**, not a local tunnel. The deployed app has a single permanent URL that both dev stores install against. This is the same topology a merchant-facing production app uses, so the install flow being validated here is the real one.
 
-**Setup:**
-1. Start ngrok: `ngrok http 3000 --domain=corrinne-isoelectric-judy.ngrok-free.dev`
-2. Start the app: `shopify app dev --tunnel-url=https://corrinne-isoelectric-judy.ngrok-free.dev`
-3. First store is installed automatically by `shopify app dev`
-4. Second store is installed by visiting: `https://admin.shopify.com/store/SECOND-STORE-HANDLE/oauth/install?client_id=CLIENT_ID` (find client_id in shopify.app.toml)
-5. Both stores now have session records in the PostgreSQL database
+> **Why not ngrok or `shopify app dev --tunnel-url`?** `shopify app dev` only rewrites the app URL for the store it is actively tunneling to — a second store installed against the same Partner app would hit a stale URL the moment the dev server restarts. ngrok is also blocked on the Steadro network (SSL/TLS interception), so it is not a viable fallback. The deployed app URL is stable across restarts and shared by every store, which is what multi-store install requires.
+
+**One-time setup:**
+1. Deploy the app to DigitalOcean App Platform. The Dockerfile at the repo root builds the container; `prisma migrate deploy` runs on container start. Confirm the app is reachable at its `ondigitalocean.app` URL (or custom domain).
+2. Set `application_url` in `shopify.app.toml` to the deployed URL (HTTPS, no trailing slash).
+3. Run `shopify app deploy` to push the config to the Partner Dashboard. This updates the app URL and allowed redirect URLs for every store.
+4. In the Partner Dashboard, confirm the app URL and `/auth/callback` redirect URL both match the deployed URL.
+
+**Install flow (per store):**
+1. **First store** — open the Partner Dashboard → Apps → Cascade → "Test on development store" → select the store. Shopify walks the OAuth consent and drops you into the embedded app.
+2. **Second store** — visit `https://admin.shopify.com/store/SECOND-STORE-HANDLE/oauth/install?client_id=CLIENT_ID` directly (the client_id is in `shopify.app.toml`). This triggers the same OAuth flow against the deployed app URL.
+3. After each install, confirm a row exists in the Prisma `Session` table for the store (`npx prisma studio` → Session). The `accessToken` column must be populated — that is the offline token used for cross-store API calls.
 
 **How cross-store sync works at the server level:**
-- The merchant opens Cascade from Store A's admin (embedded app loads via ngrok tunnel)
-- Store A's session comes from the current request context
-- When syncing to Store B, the server looks up Store B's offline session token from the Prisma Session table
-- API calls to Store B use that stored token — no second tunnel or browser session needed
+- The merchant opens Cascade from Store A's admin. The embedded app loads from the deployed URL via App Bridge.
+- Store A's session is derived from the current request's session token (App Bridge).
+- When Cascade needs to read from or write to Store B, the server looks up Store B's offline access token from the Prisma `Session` table and constructs an Admin API client for Store B using `createAdminApiClient` (see AD-004).
+- Store B never needs its own browser session or tunnel — the stored offline token is sufficient for server-to-server GraphQL calls.
 
 **Do NOT:**
-- Do not run two instances of `shopify app dev`
-- Do not update app URLs in the Dev Dashboard manually — `shopify app dev --tunnel-url` handles this
-- Do not use the Cloudflare tunnel (it's per-store only) — always use ngrok for multi-store testing
+- Do not attempt ngrok or any other tunnel for multi-store testing. Only the deployed URL works.
+- Do not edit app URLs directly in the Partner Dashboard. Change `application_url` in `shopify.app.toml` and run `shopify app deploy` so the config stays source-controlled.
+- Do not run `shopify app dev` while validating a multi-store flow. `shopify app dev` is for single-store local iteration only and will temporarily rewrite the app URL, breaking the deployed install.
+- Do not mix a locally-running database with the deployed app. The deployed app uses the managed PostgreSQL instance; local changes to `prisma/schema.prisma` must be deployed (`prisma migrate deploy` runs automatically on container start) before testing against it.
+
+**Local single-store iteration is unchanged:** `shopify app dev` with the default Cloudflare tunnel still works for fast inner-loop development against one store. Use it for UI and logic work; switch to the deployed app only when validating install, OAuth, or multi-store sync.
 
 ---
 

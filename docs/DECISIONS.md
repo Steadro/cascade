@@ -36,6 +36,13 @@ Tracks architectural decisions, temporary workarounds, and cleanup items. Every 
 **Why:** The DigitalOcean deployment requires PostgreSQL. Running SQLite locally masked real PostgreSQL behavior in tests (constraint differences, type coercions). A single database engine eliminates dev/prod parity issues.
 **Trade-off:** Developers need a running PostgreSQL instance for local development and testing. Acceptable — DigitalOcean managed DB is already provisioned.
 
+### AD-006: Multi-store install flow validated against the deployed app, not a local tunnel
+**Date:** 2026-04-11
+**Decision:** Multi-store dev testing uses the DigitalOcean App Platform deployment as its app URL. Both dev stores install against the deployed URL. `shopify app dev` remains the inner-loop workflow for single-store iteration only.
+**Why:** `shopify app dev --tunnel-url` only rewrites the app URL for the store it is actively tunneling to — a second store installed against the same Partner app would hit a stale URL the moment the dev server restarts. ngrok (the originally documented workaround) is blocked on the Steadro network due to SSL/TLS interception and is not a viable fallback. A permanent deployed URL is the only topology where two stores can coexist on the same Partner app, and it mirrors the production install flow merchants will eventually use.
+**Trade-off:** Validating multi-store flows requires a deploy step (push config, wait for container build) rather than a hot-reload cycle. Acceptable — multi-store install is a low-frequency validation, not an inner-loop activity. Single-store UI and logic work still uses `shopify app dev` unchanged.
+**See also:** SPEC_TECHNICAL.md § "Multi-Store Development Testing" for the concrete install steps.
+
 ---
 
 ## Dev Workarounds (Temporary — Must Be Removed)
@@ -81,7 +88,11 @@ Tracks architectural decisions, temporary workarounds, and cleanup items. Every 
 
 ## Phase 4 Handoff
 
-**Status as of 2026-04-09:** Phases 1–3 are complete. PostgreSQL is validated and all 112 tests pass against DigitalOcean managed PostgreSQL. The codebase is ready for Phase 4.
+**Status as of 2026-04-11:** Phases 1–3 are complete in code. PostgreSQL is validated and all 112 tests pass against DigitalOcean managed PostgreSQL. Before Phase 4 end-to-end work begins, Phases 1–3 must be validated against the deployed app on DigitalOcean App Platform with two real dev stores installed (per AD-006 and SPEC_TECHNICAL.md § "Multi-Store Development Testing"). Any issues surfaced there belong in Phase 3 cleanup, not Phase 4 scope.
+
+**Immediate blocker:** The app has not been deployed yet. The DO App Platform project exists and the GitHub main branch is linked, but the component has not been configured, no env vars are set, and no container has been built. `shopify.app.toml` still has `application_url = "https://example.com"`. The concrete next action is the **First-Time Deploy Runbook** in `docs/CLAUDE.md` § "Deployment" — nine ordered steps that take the project from "branch linked" to "two stores installed and Phase 1–3 validated."
+
+**Decision on scope of Phase 4 work before deploy:** Phase 4 coding (mutation execution, ID remapping, CDN rewriting, progress tracking) can proceed against unit tests and single-store `shopify app dev` without a deploy. But the first real end-to-end sync from Store A → Store B requires the deploy to have happened. Plan the deploy for when the first mutation execution is ready to exercise, or sooner if convenient.
 
 **What Phase 4 covers** (from SPEC_TECHNICAL.md):
 - ID remapping using ResourceMap (cross-store GID translation)

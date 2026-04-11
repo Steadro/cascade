@@ -237,18 +237,17 @@ PostgreSQL is the only database. The Prisma schema targets PostgreSQL exclusivel
 
 | Environment | Database |
 |-------------|----------|
-| Development | PostgreSQL (local or DigitalOcean managed) |
-| Testing | PostgreSQL (same instance or dedicated test DB via `TEST_DATABASE_URL`) |
-| Production | [DigitalOcean Managed PostgreSQL](https://www.digitalocean.com/products/managed-databases-postgresql) |
+| Development | [DigitalOcean Managed PostgreSQL](https://www.digitalocean.com/products/managed-databases-postgresql) — instance `steadro-cascade-postgresql-dev` (NYC1) |
+| Testing | Same instance as dev, or a dedicated test DB via `TEST_DATABASE_URL` |
+| Production | A separate DigitalOcean Managed PostgreSQL instance (provisioned at launch time, not yet created) |
 
 ### Hosting
 
-- [Google Cloud Run](https://shopify.dev/docs/apps/launch/deployment/deploy-to-google-cloud-run)
-- [Fly.io](https://fly.io/docs/js/shopify/)
-- [Render](https://render.com/docs/deploy-shopify-app)
-- [DigitalOcean App Platform](https://www.digitalocean.com/products/app-platform) (target)
+**Platform:** [DigitalOcean App Platform](https://www.digitalocean.com/products/app-platform). The `Dockerfile` at repo root is the build source — App Platform detects it automatically and builds/runs the container. Port 8080, `NODE_ENV=production`, and `prisma migrate deploy` on container start are all baked into the Dockerfile.
 
-Set `NODE_ENV=production` in your hosting environment.
+**Single environment for now.** Until Cascade is ready for App Store submission, there is exactly one DO environment (one App Platform app + one managed Postgres + one Shopify Partner app config). Both dev stores install against the same deployed URL. A separate production environment is created only at launch. See `docs/DECISIONS.md` § AD-006 for why.
+
+**First-time deploy:** The full runbook lives in `docs/CLAUDE.md` § "Deployment → First-Time Deploy Runbook" (nine ordered steps from "branch linked" to "two stores installed"). Do not attempt a deploy without following it — the env var ordering and the `SHOPIFY_APP_URL` chicken-and-egg step are not obvious.
 
 ---
 

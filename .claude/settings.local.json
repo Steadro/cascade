@@ -26,7 +26,9 @@
       "mcp__shopify-dev-mcp__learn_shopify_api",
       "Bash(node:*)",
       "mcp__context7__resolve-library-id",
-      "mcp__context7__query-docs"
+      "mcp__context7__query-docs",
+      "Bash(grep -h \"process\\\\.env\\\\.\\\\|import\\\\.meta\\\\.env\\\\.\" /c/.dev/.app/cascade/app/**/*.ts /c/.dev/.app/cascade/app/**/*.tsx)",
+      "Bash(npm ls:*)"
     ]
   }
 }

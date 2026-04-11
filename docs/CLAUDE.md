@@ -97,6 +97,8 @@ CLAUDE.md             # This file — read automatically every session
 
 **Platform:** DigitalOcean App Platform + managed PostgreSQL (steadro-cascade-postgresql-dev, NYC1, PostgreSQL 18).
 
+**Single environment for now.** Until Cascade is ready for App Store submission, there is only one DigitalOcean environment: one App Platform app + one managed Postgres instance + one Shopify Partner app pointing at its URL. Both dev stores install against this same deployment. A separate production environment (second App Platform app, second managed DB, second Partner app config) will be created only at launch time. See DECISIONS.md § AD-006 for the rationale.
+
 **Key facts:**
 - PostgreSQL is the only database. SQLite is no longer used anywhere.
 - Port 8080 is required by DigitalOcean App Platform.
@@ -104,6 +106,75 @@ CLAUDE.md             # This file — read automatically every session
 - `DATABASE_URL` must be set as an env var pointing to the managed PostgreSQL instance (with `?sslmode=require`).
 - Multi-store testing uses the DigitalOcean deployment (permanent URL), not local tunnels. Both dev stores install against the deployed app URL.
 - Local single-store dev still uses `shopify app dev` with the default Cloudflare tunnel — no changes to that workflow.
+
+### Current Deployment Status
+
+**As of 2026-04-11:** The DigitalOcean App Platform project has been created and the GitHub main branch is linked, but **no container has been deployed yet**. `application_url` in `shopify.app.toml` is still the placeholder `https://example.com`. The next concrete action is to walk through the First-Time Deploy Runbook below. Until that happens, no live URL exists, multi-store install cannot be validated, and Phase 4 work must stay in code/unit-test territory that doesn't require an end-to-end cross-store sync.
+
+### First-Time Deploy Runbook
+
+Follow these steps in order. Each step depends on the previous one.
+
+**1. Configure the App Platform component**
+- Build method: **Dockerfile** (auto-detected from `Dockerfile` at repo root — confirm it's not Buildpacks)
+- HTTP port: **8080**
+- Region: **NYC1** (same as `steadro-cascade-postgresql-dev` — keeps DB traffic on DO's private VPC)
+- Instance size: Basic tier is sufficient for dev
+
+**2. Attach the managed database**
+- Add `steadro-cascade-postgresql-dev` as a database component in the App Platform project.
+- This creates a binding variable that can be referenced as `${steadro-cascade-postgresql-dev.DATABASE_URL}` in env vars. Prefer this over pasting the raw connection string — DO rotates credentials automatically and traffic stays on the private VPC.
+- Fallback: paste the raw `DATABASE_URL` into env vars directly. Must end with `?sslmode=require`.
+
+**3. Set environment variables**
+
+| Key | Value | Encrypted? |
+|---|---|---|
+| `DATABASE_URL` | `${steadro-cascade-postgresql-dev.DATABASE_URL}` (or raw URL with `?sslmode=require`) | Yes |
+| `SHOPIFY_API_KEY` | `03cccdd9479bd45fe02e377e43b8c3b5` (client_id from `shopify.app.toml`) | No — this is public |
+| `SHOPIFY_API_SECRET` | From Partner Dashboard → Cascade → Configuration → Client credentials → Client secret | **Yes** |
+| `SCOPES` | Full scopes string from `shopify.app.toml` line 9 | No |
+| `SHOPIFY_APP_URL` | **Leave blank for the first deploy.** Set in step 5 after DO assigns the URL. | No |
+
+Do **not** set `NODE_ENV` or `PORT` — the Dockerfile already hard-codes these.
+
+**4. First deploy**
+- Trigger the deploy. Expect 4–8 minutes for a cold build (npm ci + prisma generate + react-router build).
+- Watch build logs for: `prisma generate` succeeds → `react-router build` succeeds → container starts → `prisma migrate deploy` reports either "No pending migrations" or applies them cleanly → app listens on `0.0.0.0:8080`.
+- First-deploy failure modes: missing env var at build time, Prisma client generation, a TypeScript error that didn't surface locally, or a node engine mismatch (`package.json` requires `>=20.19 <22 || >=22.12`).
+
+**5. Capture the URL and redeploy with `SHOPIFY_APP_URL` set**
+- Once the deploy is green, DO assigns a URL like `https://cascade-xxxxx.ondigitalocean.app`.
+- Go back to env vars, paste the URL into `SHOPIFY_APP_URL`, save. DO will redeploy automatically (1–2 min, cached).
+- This second deploy is when the Shopify framework actually knows its public URL and can handle OAuth.
+
+**6. Update `shopify.app.toml` and push Partner Dashboard config**
+- Edit `shopify.app.toml`:
+  - `application_url = "https://cascade-xxxxx.ondigitalocean.app"` (no trailing slash)
+  - `redirect_urls = ["https://cascade-xxxxx.ondigitalocean.app/auth/callback", "https://cascade-xxxxx.ondigitalocean.app/auth/shopify/callback", "https://cascade-xxxxx.ondigitalocean.app/api/auth/callback"]` (confirm the exact paths the Shopify framework registers — check `app/shopify.server.ts` if unsure)
+- Run `shopify app deploy` from the local machine to push the config to the Partner Dashboard. This is what actually tells Shopify "the app lives here now." OAuth will not work until this step completes.
+- Commit the `shopify.app.toml` change so the deployed URL is source-controlled.
+
+**7. Install on the first dev store**
+- Partner Dashboard → Apps → Cascade → "Test on development store" → pick the first store.
+- Walk through the OAuth consent screen. The embedded app should load inside the store admin.
+- Verify a row exists in the Prisma `Session` table for the store (`npx prisma studio` locally, pointing at the same `DATABASE_URL` — or use DO's database console).
+
+**8. Install on the second dev store**
+- Visit: `https://admin.shopify.com/store/SECOND-STORE-HANDLE/oauth/install?client_id=03cccdd9479bd45fe02e377e43b8c3b5`
+- Complete OAuth. Verify the second `Session` row appears.
+- Both stores now have offline access tokens in the same Postgres instance. Cross-store API calls (via `createAdminApiClient` — AD-004) will work server-to-server from this point on.
+
+**9. End-to-end Phase 1–3 validation**
+- From Store A's admin, open Cascade. Pair Store A with Store B.
+- Run the read + diff pipeline (Phase 3). Confirm the preview UI renders a diff against real Store B data.
+- Any issues surfaced here are Phase 3 cleanup, **not** Phase 4 scope (per DECISIONS.md Phase 4 Handoff).
+
+### Deploy Troubleshooting (to be filled in as issues surface)
+
+<!-- When the first deploy hits a wall, document the specific failure and fix here so the next deploy doesn't repeat it. -->
+
+- *(none yet — first deploy hasn't been run)*
 
 ## Known Gotchas
 
