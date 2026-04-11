@@ -43,6 +43,18 @@ Tracks architectural decisions, temporary workarounds, and cleanup items. Every 
 **Trade-off:** Validating multi-store flows requires a deploy step (push config, wait for container build) rather than a hot-reload cycle. Acceptable — multi-store install is a low-frequency validation, not an inner-loop activity. Single-store UI and logic work still uses `shopify app dev` unchanged.
 **See also:** SPEC_TECHNICAL.md § "Multi-Store Development Testing" for the concrete install steps.
 
+### AD-007: PRE_DEPLOY job for Prisma migrations (Phase 3.5)
+**Date:** 2026-04-11
+**Decision:** Run `prisma migrate deploy` as a DigitalOcean PRE_DEPLOY job instead of in the Dockerfile CMD.
+**Why:** Running migrations in CMD creates race conditions if the app scales to multiple container instances. PRE_DEPLOY runs once before any containers start, and if it fails, the deployment is rolled back automatically.
+**Trade-off:** Adds a job component to the app spec. Negligible cost — uses the smallest instance size and runs for seconds.
+
+### AD-008: node:20-slim over node:20-alpine for Docker (Phase 3.5)
+**Date:** 2026-04-11
+**Decision:** Use `node:20-slim` (Debian-based) instead of `node:20-alpine` for the production Docker image.
+**Why:** Prisma ORM has known binary target mismatches on Alpine Linux. The Prisma query engine expects `debian-openssl-3.0.x` targets. Alpine uses musl libc instead of glibc, which can cause silent runtime failures.
+**Trade-off:** Slightly larger image (~50MB more). Acceptable — image size is not a bottleneck on App Platform.
+
 ---
 
 ## Dev Workarounds (Temporary — Must Be Removed)
@@ -81,6 +93,7 @@ Tracks architectural decisions, temporary workarounds, and cleanup items. Every 
 | 2: Store Pairing | Complete | 80 (cumulative) | `d03427c` |
 | 3: Sync Read & Diff | Complete | 112 (cumulative) | `5ef50f2` |
 | 3.5: PostgreSQL migration + DB validation | Complete | 112 (all passing on PG) | — |
+| 3.6: DigitalOcean deployment + multi-store unblock | In progress | — | — |
 | 4: Sync Transform & Execute | Not started | — | — |
 | 5: History & Polish | Not started | — | — |
 

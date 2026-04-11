@@ -3,7 +3,7 @@
 **Product:** Cascade
 **Developer:** Steadro (kyle@steadro.com)
 **Repo:** https://github.com/Steadro/cascade
-**Status:** Scaffolded, app running on dev store, ready for development
+**Status:** Phases 1–3 complete (foundation, store pairing, sync read & diff). Deploying to DigitalOcean App Platform to unblock multi-store testing. Phase 4 (sync transform & execute) begins after deployment is verified.
 
 ---
 
