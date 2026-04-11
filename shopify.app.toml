@@ -2,7 +2,7 @@
 
 client_id = "03cccdd9479bd45fe02e377e43b8c3b5"
 name = "Cascade"
-application_url = "https://example.com"
+application_url = "https://cascade-app-off6g.ondigitalocean.app"
 embedded = true
 
 [access_scopes]
@@ -10,7 +10,7 @@ scopes = "read_products,write_products,read_inventory,write_inventory,read_conte
 use_legacy_install_flow = false
 
 [auth]
-redirect_urls = []
+redirect_urls = ["https://cascade-app-off6g.ondigitalocean.app/auth/callback"]
 
 [webhooks]
 api_version = "2026-04"
