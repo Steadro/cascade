@@ -33,6 +33,11 @@ jobs:
         run: npm run lint
 
       - name: Validate Prisma
+        env:
+          # Prisma validate needs DATABASE_URL set to parse the `url = env("DATABASE_URL")`
+          # line in schema.prisma. The value is never used for a connection — it only needs
+          # to be a valid-looking URL string. Real DATABASE_URL lives in DO App Platform.
+          DATABASE_URL: "postgresql://validate:validate@localhost:5432/validate?sslmode=disable"
         run: npx prisma generate && npx prisma validate
 
       - name: Build application
