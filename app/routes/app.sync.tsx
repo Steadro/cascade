@@ -117,7 +117,7 @@ const ACTION_TONES = {
 } as const;
 
 export default function SyncPage() {
-  const { shop, pairings, tier, canSync } = useLoaderData<typeof loader>();
+  const { pairings, tier } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
 
@@ -286,7 +286,11 @@ export default function SyncPage() {
               name="targetStore"
               placeholder="Select a store..."
               value={selectedPairing}
-              onChange={(e: any) => setSelectedPairing(e.target.value)}
+              onChange={(e: Event) =>
+                setSelectedPairing(
+                  (e.target as HTMLSelectElement).value,
+                )
+              }
             >
               {pairings.map((p) => (
                 <s-option key={p.id} value={p.id}>

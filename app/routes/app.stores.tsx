@@ -97,7 +97,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function StoresPage() {
-  const { shop, pairings, tier, pairingLimit } =
+  const { pairings, tier, pairingLimit } =
     useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
@@ -221,7 +221,9 @@ export default function StoresPage() {
                 label="Store domain"
                 placeholder="my-dev-store.myshopify.com"
                 value={domain}
-                onInput={(e: any) => setDomain(e.target.value)}
+                onInput={(e: Event) =>
+                  setDomain((e.target as HTMLInputElement).value)
+                }
               />
               <s-text color="subdued">
                 Enter the myshopify.com domain of the store to pair
@@ -232,7 +234,9 @@ export default function StoresPage() {
                 label="Label"
                 placeholder="e.g. Development, Staging, QA"
                 value={label}
-                onInput={(e: any) => setLabel(e.target.value)}
+                onInput={(e: Event) =>
+                  setLabel((e.target as HTMLInputElement).value)
+                }
                 maxLength={MAX_LABEL_LENGTH}
               />
               <s-text color="subdued">A name for this environment</s-text>

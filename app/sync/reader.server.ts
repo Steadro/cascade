@@ -197,7 +197,7 @@ async function readBlogs(client: StoreClient): Promise<ResourceRecord[]> {
     const articlesConnection = blogData?.articles as ConnectionResult | undefined;
     if (!articlesConnection) continue;
 
-    let allArticles = [...articlesConnection.nodes];
+    const allArticles = [...articlesConnection.nodes];
     let hasNext = articlesConnection.pageInfo.hasNextPage;
     let cursor = articlesConnection.pageInfo.endCursor;
 

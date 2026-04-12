@@ -49,7 +49,7 @@ const STATUS_TONES: Record<string, BadgeTone> = {
 };
 
 export default function Index() {
-  const { shop, tier, isActive, pairings, recentJobs, hasPairings } =
+  const { isActive, pairings, recentJobs, hasPairings } =
     useLoaderData<typeof loader>();
 
   const primaryPairings = pairings.filter((p) => p.role === "primary");

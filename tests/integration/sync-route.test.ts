@@ -205,7 +205,7 @@ describe("Sync Route", () => {
     });
 
     it("generates preview for valid push request", async () => {
-      const adminObj = mockAuth("primary.myshopify.com");
+      mockAuth("primary.myshopify.com");
 
       const pairing = await prisma.storePairing.create({
         data: {

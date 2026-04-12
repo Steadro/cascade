@@ -89,6 +89,18 @@ module.exports = {
         node: true,
       },
     },
+
+    // Tests — mocks legitimately need `any` casts
+    {
+      files: ["tests/**/*.{ts,tsx}"],
+      rules: {
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-unused-vars": [
+          "error",
+          { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+        ],
+      },
+    },
   ],
   globals: {
     shopify: "readonly"
