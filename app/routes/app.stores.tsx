@@ -144,15 +144,22 @@ export default function StoresPage() {
         ) : (
           <s-stack direction="block" gap="base">
             {pairings.map((pairing) => (
-              <s-card key={pairing.id}>
+              <s-box
+                key={pairing.id}
+                padding="base"
+                background="base"
+                borderRadius="base"
+                borderWidth="base"
+                borderColor="base"
+              >
                 <s-stack direction="inline" gap="base">
-                  <s-stack direction="block" gap="tight">
-                    <s-text variant="headingSm">
+                  <s-stack direction="block" gap="small-200">
+                    <s-text type="strong">
                       {pairing.role === "primary"
                         ? pairing.pairedShop
                         : pairing.primaryShop}
                     </s-text>
-                    <s-stack direction="inline" gap="tight">
+                    <s-stack direction="inline" gap="small-200">
                       {pairing.label && (
                         <s-badge>{pairing.label}</s-badge>
                       )}
@@ -164,7 +171,7 @@ export default function StoresPage() {
                         {pairing.status}
                       </s-badge>
                     </s-stack>
-                    <s-text variant="bodySm" tone="subdued">
+                    <s-text color="subdued">
                       {pairing.lastSyncedAt
                         ? `Last synced: ${new Date(pairing.lastSyncedAt).toLocaleDateString()}`
                         : "Never synced"}
@@ -186,7 +193,7 @@ export default function StoresPage() {
                     </s-button>
                   )}
                 </s-stack>
-              </s-card>
+              </s-box>
             ))}
             {canAddMore && (
               <s-button onClick={() => setShowForm(true)}>
@@ -209,21 +216,27 @@ export default function StoresPage() {
       {showForm && (
         <s-section heading="Pair a New Store">
           <s-stack direction="block" gap="base">
-            <s-text-field
-              label="Store domain"
-              placeholder="my-dev-store.myshopify.com"
-              value={domain}
-              onInput={(e: any) => setDomain(e.target.value)}
-              helpText="Enter the myshopify.com domain of the store to pair"
-            />
-            <s-text-field
-              label="Label"
-              placeholder="e.g. Development, Staging, QA"
-              value={label}
-              onInput={(e: any) => setLabel(e.target.value)}
-              helpText="A name for this environment"
-              maxLength={MAX_LABEL_LENGTH}
-            />
+            <s-stack direction="block" gap="small-200">
+              <s-text-field
+                label="Store domain"
+                placeholder="my-dev-store.myshopify.com"
+                value={domain}
+                onInput={(e: any) => setDomain(e.target.value)}
+              />
+              <s-text color="subdued">
+                Enter the myshopify.com domain of the store to pair
+              </s-text>
+            </s-stack>
+            <s-stack direction="block" gap="small-200">
+              <s-text-field
+                label="Label"
+                placeholder="e.g. Development, Staging, QA"
+                value={label}
+                onInput={(e: any) => setLabel(e.target.value)}
+                maxLength={MAX_LABEL_LENGTH}
+              />
+              <s-text color="subdued">A name for this environment</s-text>
+            </s-stack>
 
             {fetcher.data && !fetcher.data.ok && fetcher.state === "idle" && (
               <s-banner tone="critical">

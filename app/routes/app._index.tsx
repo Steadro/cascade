@@ -31,11 +31,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
 };
 
-const STATUS_TONES: Record<string, string> = {
+type BadgeTone =
+  | "info"
+  | "success"
+  | "critical"
+  | "warning"
+  | "auto"
+  | "neutral"
+  | "caution";
+
+const STATUS_TONES: Record<string, BadgeTone> = {
   completed: "success",
   failed: "critical",
   running: "info",
-  pending: "attention",
+  pending: "neutral",
   cancelled: "warning",
 };
 
@@ -92,14 +101,21 @@ export default function Index() {
           <s-section heading="Paired Stores">
             <s-stack direction="block" gap="base">
               {pairings.map((pairing) => (
-                <s-card key={pairing.id}>
-                  <s-stack direction="block" gap="tight">
-                    <s-text variant="headingSm">
+                <s-box
+                  key={pairing.id}
+                  padding="base"
+                  background="base"
+                  borderRadius="base"
+                  borderWidth="base"
+                  borderColor="base"
+                >
+                  <s-stack direction="block" gap="small-200">
+                    <s-text type="strong">
                       {pairing.role === "primary"
                         ? pairing.pairedShop
                         : pairing.primaryShop}
                     </s-text>
-                    <s-stack direction="inline" gap="tight">
+                    <s-stack direction="inline" gap="small-200">
                       {pairing.label && <s-badge>{pairing.label}</s-badge>}
                       <s-badge
                         tone={
@@ -109,43 +125,50 @@ export default function Index() {
                         {pairing.status}
                       </s-badge>
                     </s-stack>
-                    <s-text variant="bodySm" tone="subdued">
+                    <s-text color="subdued">
                       {pairing.lastSyncedAt
                         ? `Last synced: ${new Date(pairing.lastSyncedAt).toLocaleDateString()}`
                         : "Never synced"}
                     </s-text>
                   </s-stack>
-                </s-card>
+                </s-box>
               ))}
             </s-stack>
           </s-section>
 
           <s-section heading="Recent Activity">
             {recentJobs.length === 0 ? (
-              <s-text tone="subdued">No sync jobs yet.</s-text>
+              <s-text color="subdued">No sync jobs yet.</s-text>
             ) : (
               <s-stack direction="block" gap="base">
                 {recentJobs.map((job) => (
-                  <s-card key={job.id}>
+                  <s-box
+                    key={job.id}
+                    padding="base"
+                    background="base"
+                    borderRadius="base"
+                    borderWidth="base"
+                    borderColor="base"
+                  >
                     <s-stack direction="inline" gap="base">
-                      <s-stack direction="block" gap="tight">
-                        <s-text variant="bodySm">
+                      <s-stack direction="block" gap="small-200">
+                        <s-text>
                           {job.sourceShop} → {job.targetShop}
                         </s-text>
-                        <s-text variant="bodySm" tone="subdued">
+                        <s-text color="subdued">
                             {job.resourceTypesList.join(", ")}
                         </s-text>
                       </s-stack>
-                      <s-stack direction="block" gap="tight">
+                      <s-stack direction="block" gap="small-200">
                         <s-badge tone={STATUS_TONES[job.status] ?? "info"}>
                           {job.status}
                         </s-badge>
-                        <s-text variant="bodySm" tone="subdued">
+                        <s-text color="subdued">
                           {new Date(job.createdAt).toLocaleDateString()}
                         </s-text>
                       </s-stack>
                     </s-stack>
-                  </s-card>
+                  </s-box>
                 ))}
               </s-stack>
             )}

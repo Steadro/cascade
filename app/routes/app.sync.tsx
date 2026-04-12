@@ -111,11 +111,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return { ok: false, error: "Unknown action" };
 };
 
-const ACTION_TONES: Record<string, string> = {
+const ACTION_TONES = {
   create: "info",
   update: "warning",
-  skip: "",
-};
+} as const;
 
 export default function SyncPage() {
   const { shop, pairings, tier, canSync } = useLoaderData<typeof loader>();
@@ -200,7 +199,7 @@ export default function SyncPage() {
           .filter((r) => r.createCount > 0 || r.updateCount > 0)
           .map((result) => (
             <s-section key={result.resourceType} heading={result.label}>
-              <s-stack direction="inline" gap="tight">
+              <s-stack direction="inline" gap="small-200">
                 {result.createCount > 0 && (
                   <s-badge tone="info">{result.createCount} create</s-badge>
                 )}
@@ -212,22 +211,26 @@ export default function SyncPage() {
                 )}
               </s-stack>
 
-              <s-stack direction="block" gap="tight">
+              <s-stack direction="block" gap="small-200">
                 {result.items
                   .filter((item) => item.action !== "skip")
                   .map((item) => (
                     <s-stack
                       key={item.handle}
                       direction="inline"
-                      gap="tight"
+                      gap="small-200"
                     >
-                      <s-badge tone={ACTION_TONES[item.action]}>
+                      <s-badge
+                        tone={
+                          item.action === "create"
+                            ? ACTION_TONES.create
+                            : ACTION_TONES.update
+                        }
+                      >
                         {item.action}
                       </s-badge>
-                      <s-text variant="bodySm">{item.title}</s-text>
-                      <s-text variant="bodySm" tone="subdued">
-                        {item.handle}
-                      </s-text>
+                      <s-text>{item.title}</s-text>
+                      <s-text color="subdued">{item.handle}</s-text>
                     </s-stack>
                   ))}
               </s-stack>
@@ -236,7 +239,7 @@ export default function SyncPage() {
 
         {preview.totalCreate === 0 && preview.totalUpdate === 0 && (
           <s-section>
-            <s-text tone="subdued">
+            <s-text color="subdued">
               Everything is in sync — no changes needed.
             </s-text>
           </s-section>
@@ -249,7 +252,7 @@ export default function SyncPage() {
             </s-button>
             <s-button onClick={() => setStep("configure")}>Back</s-button>
           </s-stack>
-          <s-text variant="bodySm" tone="subdued">
+          <s-text color="subdued">
             Sync execution will be available in a future update.
           </s-text>
         </s-section>
@@ -309,7 +312,7 @@ export default function SyncPage() {
             </s-stack>
 
             <s-section heading="Resource Types">
-              <s-stack direction="block" gap="tight">
+              <s-stack direction="block" gap="small-200">
                 <s-checkbox
                   label="Select All"
                   checked={selectedTypes.size === SYNC_ORDER.length}
