@@ -93,7 +93,7 @@ Tracks architectural decisions, temporary workarounds, and cleanup items. Every 
 | 2: Store Pairing | Complete | 80 (cumulative) | `d03427c` |
 | 3: Sync Read & Diff | Complete | 112 (cumulative) | `5ef50f2` |
 | 3.5: PostgreSQL migration + DB validation | Complete | 112 (all passing on PG) | — |
-| 3.6: DigitalOcean deployment + multi-store unblock | In progress | — | — |
+| 3.6: DigitalOcean deployment + multi-store unblock | Complete | 112 (all passing against DO PostgreSQL) | — |
 | 4: Sync Transform & Execute | Not started | — | — |
 | 5: History & Polish | Not started | — | — |
 
@@ -101,9 +101,9 @@ Tracks architectural decisions, temporary workarounds, and cleanup items. Every 
 
 ## Phase 4 Handoff
 
-**Status as of 2026-04-11:** Phases 1–3 are complete in code. PostgreSQL is validated and all 112 tests pass against DigitalOcean managed PostgreSQL. Before Phase 4 end-to-end work begins, Phases 1–3 must be validated against the deployed app on DigitalOcean App Platform with two real dev stores installed (per AD-006 and SPEC_TECHNICAL.md § "Multi-Store Development Testing"). Any issues surfaced there belong in Phase 3 cleanup, not Phase 4 scope.
+**Status as of 2026-04-11:** Phase 3.6 is complete. The app is deployed to DigitalOcean App Platform at `https://cascade-app-off6g.ondigitalocean.app`, both dev stores are installed via the deployed URL (primary + `steadro-prod-2.myshopify.com` paired), and Phases 1–3 have been validated against the production PostgreSQL with all 112 tests passing locally (after the local IP was added to the managed DB's Trusted Sources allowlist). `/health` returns 200. `shopify app deploy` has pushed `application_url` and `redirect_urls` to the Partner Dashboard (version `cascade-2`). Any issues surfaced during live multi-store testing belong in Phase 3 cleanup, not Phase 4 scope.
 
-**Immediate blocker:** The app has not been deployed yet. The DO App Platform project exists and the GitHub main branch is linked, but the component has not been configured, no env vars are set, and no container has been built. `shopify.app.toml` still has `application_url = "https://example.com"`. The concrete next action is the **First-Time Deploy Runbook** in `docs/CLAUDE.md` § "Deployment" — nine ordered steps that take the project from "branch linked" to "two stores installed and Phase 1–3 validated."
+**Phase 4 entry gate:** Kyle's manual multi-store smoke test pass — app loads embedded on both stores, pairing create/read works, sync preview renders a correct diff summary across all 7 resource types. The "Start Sync" button is intentionally disabled in Phase 3 (execution is Phase 4) and should remain disabled until Phase 4 work begins.
 
 **Decision on scope of Phase 4 work before deploy:** Phase 4 coding (mutation execution, ID remapping, CDN rewriting, progress tracking) can proceed against unit tests and single-store `shopify app dev` without a deploy. But the first real end-to-end sync from Store A → Store B requires the deploy to have happened. Plan the deploy for when the first mutation execution is ready to exercise, or sooner if convenient.
 
