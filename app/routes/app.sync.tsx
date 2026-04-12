@@ -280,15 +280,16 @@ export default function SyncPage() {
           <s-stack direction="block" gap="base">
             <s-select
               label="Target store"
+              name="targetStore"
+              placeholder="Select a store..."
               value={selectedPairing}
               onChange={(e: any) => setSelectedPairing(e.target.value)}
             >
-              <option value="">Select a store...</option>
               {pairings.map((p) => (
-                <option key={p.id} value={p.id}>
+                <s-option key={p.id} value={p.id}>
                   {p.role === "primary" ? p.pairedShop : p.primaryShop}
                   {p.label ? ` (${p.label})` : ""}
-                </option>
+                </s-option>
               ))}
             </s-select>
 
