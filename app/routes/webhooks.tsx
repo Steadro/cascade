@@ -12,8 +12,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     topic = webhookContext.topic;
     const { session, payload } = webhookContext;
 
-    console.log(`Received ${topic} webhook for ${shop}`);
-
     switch (topic) {
       case "APP_UNINSTALLED": {
         if (session) {
@@ -33,20 +31,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         break;
       }
 
-      case "CUSTOMERS_DATA_REQUEST": {
-        console.log(
-          `Customer data request for ${shop} — no customer data stored`,
-        );
-        break;
-      }
-
+      case "CUSTOMERS_DATA_REQUEST":
       case "CUSTOMERS_REDACT": {
-        console.log(`Customer redact for ${shop} — no customer data stored`);
         break;
       }
 
       case "SHOP_REDACT": {
-        console.log(`Shop redact for ${shop} — deleting all associated data`);
 
         const pairings = await db.storePairing.findMany({
           where: {
@@ -72,9 +62,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         break;
       }
 
-      default: {
-        console.log(`Unhandled webhook topic: ${topic}`);
-      }
+      default:
+        break;
     }
   } catch (error) {
     // Re-throw Response objects — these are auth failures (401/403) from
@@ -82,7 +71,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (error instanceof Response) {
       throw error;
     }
-    console.error(`Webhook error (${topic} for ${shop}):`, error);
+    console.error(`Webhook error (${topic} for ${shop}):`,
+      error instanceof Error ? error.message : String(error));
   }
 
   return new Response();

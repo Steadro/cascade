@@ -45,7 +45,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return { ok: false, error: "Store domain is required" };
     }
 
-    const rawLabel = ((formData.get("label") as string) ?? "").trim();
+    const rawLabel = ((formData.get("label") as string) ?? "")
+      .trim()
+      .replace(/\p{C}/gu, "");
     const label = rawLabel.length > 0
       ? rawLabel.slice(0, MAX_LABEL_LENGTH)
       : "Development";

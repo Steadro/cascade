@@ -149,3 +149,51 @@ Non-blocking issues surfaced during Phase 3.6 deployment and smoke testing. Addr
 - Sync order: metafield definitions → products → collections → pages → blogs → menus → redirects
 - CDN URL rewriting must handle `cdn.shopify.com/s/files/...` patterns in HTML content (pages, blog posts, metafields)
 - `createAdminApiClient` is used for cross-store API calls (AD-004)
+
+---
+
+## Session Log
+
+Reverse-chronological record of major development sessions.
+
+### Phase 3.6: DigitalOcean Deployment & Multi-Store Unblock
+**Date:** 2026-04-11 — 2026-04-12 (Kyle + Claude)
+
+**Major actions:**
+- Deployed app to DigitalOcean App Platform (`cascade-app-off6g.ondigitalocean.app`)
+- Replaced Dockerfile: Alpine → `node:20-slim`, multi-stage build, removed CMD migrations (AD-007, AD-008)
+- Added `/health` endpoint for DO health check
+- Configured PRE_DEPLOY job for `prisma migrate deploy`
+- Updated `shopify.app.toml` with deployed URL, ran `shopify app deploy` (version `cascade-2`)
+- Installed Cascade on both dev stores via deployed URL, verified multi-store install flow
+- Fixed sync page dropdown (`<option>` → `<s-option>` per Polaris web components API)
+- Ran 5-test multi-store smoke test: all green (app loads both stores, pairing renders, sync preview produces correct diff)
+- Fixed CI pipeline: collapsed 9-job matrix to single npm+Node22, fixed Prisma validate env, removed unused JS branch workflow
+- Polaris cosmetic sweep: corrected `s-card` → `s-box`, `variant` → `type`/drop, `tone="subdued"` → `color="subdued"`, `gap="tight"` → `gap="small-200"`, removed invalid `helpText`
+- Fixed TypeScript: narrowed env var types in `shopify.server.ts`, cast test fixtures for React Router 7 `LoaderFunctionArgs`
+- Fixed ESLint: added test override for `no-explicit-any`, removed unused vars, typed event handlers
+- Locked `automatically_update_urls_on_dev = false` in `shopify.app.toml` to prevent `shopify app dev` from overwriting the deployed URL
+- Added local/cloud workflow docs to CLAUDE.md
+- Cleaned up `.env` for local development
+- Committed `package-lock.json` (was gitignored, broke `npm ci` on DO)
+- Added security headers (X-Content-Type-Options, HSTS, Referrer-Policy)
+- Cleaned up debug logging in webhook handler
+- Added control character stripping to label input
+- Expanded `.dockerignore`, removed stale SQLite refs from `.gitignore`
+- Added developer onboarding path to CLAUDE.md
+- Deleted one-time `DEPLOY_TASKS.md`
+
+**Key commits:** `bd86d5b` through `f8f5c7a` (see `git log` for full list)
+
+**Validation:** 112 tests pass on DO PostgreSQL; CI green; `/health` returns 200; multi-store smoke test 5/5 green.
+
+**Status:** Phase 3.6 complete. Phase 4 (sync execution) cleared to begin.
+
+---
+
+### Phases 1–3.5: Foundation through PostgreSQL Migration
+**Dates:** 2026-04-01 — 2026-04-09
+
+**Summary:** Scaffolded from Shopify React Router template, corrected to RR7 patterns. Implemented store pairing (soft-delete, handle-based matching), subscription tier detection (name-based, WA-001/WA-002), sync read engine (7 resource types), diff engine (timestamp + content-hash comparison), preview UI. Migrated from SQLite to PostgreSQL-only (AD-005). 112 tests across unit and integration suites.
+
+**Phase completion:** See table above for per-phase status, test counts, and commit hashes.

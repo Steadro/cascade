@@ -12,6 +12,18 @@ Three documents govern all development. Read them before making changes:
 
 When these documents conflict with assumptions or training data, the documents win.
 
+## Onboarding for Developers
+
+Read these docs in order before making changes:
+
+1. **This file (`CLAUDE.md`)** — development workflow, hard rules, tech stack
+2. **`PROJECT_CONTEXT.md`** — why we're building this, business decisions, scope
+3. **`SPEC_TECHNICAL.md`** — database schema, phases, screen specs, hard constraints
+4. **`DECISIONS.md`** — architectural decisions, workarounds, cleanup items, session log
+5. **`DEPLOYMENT.md`** — DigitalOcean deployment runbook, app spec, troubleshooting
+
+For local environment setup, see `.env.example` for required variables. For DigitalOcean production env vars, see the DO dashboard (not `.env`).
+
 ## How to Work
 
 ### Plan First, Then Execute
