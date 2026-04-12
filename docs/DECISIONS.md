@@ -152,6 +152,32 @@ Non-blocking issues surfaced during Phase 3.6 deployment and smoke testing. Addr
 
 ---
 
+## TODO — Pre-Phase 4
+
+Items that must be addressed before or at the start of Phase 4 work. Ordered by priority.
+
+### Must do (before wiring Start Sync)
+
+- [ ] **Add `assertShopIsPaired` guard to `createStoreClient`** — `app/utils/admin-client.server.ts` accepts any shop name and fetches its access token. Today safe because the only caller (`app.sync.tsx:85-88`) validates the pairing first. Once Phase 4 wires the "Start Sync" button to actual mutations, a missed pairing check at any new call site = store A writing store C's data. Add an internal guard that verifies a live pairing exists before issuing cross-store API calls. (Source: security audit 2026-04-12, severity MEDIUM)
+- [ ] **Enable the "Start Sync" button** — currently hardcoded `disabled` in `app/routes/app.sync.tsx:247`. Wire it to the Phase 4 execution pipeline once mutation logic is ready.
+
+### Should do (during Phase 4)
+
+- [ ] **UI/UX styling pass** — menu layout, copy, and visual hierarchy need polish. Polaris cosmetic baseline is now correct (CU-003 resolved), so styling work starts from a valid foundation. Kyle noted this as next priority.
+- [ ] **Structured logging** — replace remaining `console.error` calls with a structured logger (pino or similar) that integrates with DO's log viewer. Currently only `entry.server.tsx:48` and `webhooks.tsx:78` log errors; both now log message-only (not raw objects), but a proper logger would add correlation IDs and log levels.
+- [ ] **Move `prisma` CLI to devDependencies** — currently in `dependencies` (~60MB in production image). Only needed for `prisma migrate deploy` in the PRE_DEPLOY job, which could use a separate install step. Minor attack surface reduction.
+- [ ] **Run tests in CI** — current CI runs typecheck, lint, prisma validate, and build, but NOT the test suite. Adding tests requires a PostgreSQL service container in GitHub Actions. Worth setting up once Phase 4 adds mutation tests that are harder to verify by eye.
+
+### Nice to have (Phase 5 or later)
+
+- [ ] **Column-level encryption for `accessToken`** in the Session table — currently plaintext (Shopify ecosystem standard). DO managed DB provides network isolation + SSL, but app-layer encryption adds defense-in-depth. Low priority unless handling enterprise customers with strict compliance requirements.
+- [ ] **Investigate CU-001** — duplicate `authenticate.admin` race on first embedded iframe load. Not breaking, but wastes a token exchange. May resolve itself with a React Router or Shopify SDK update.
+- [ ] **Investigate CU-002** — stale `trycloudflare.com` WebSocket in browser console. Likely auto-clears next `shopify app dev` session. No user impact.
+- [ ] **CSP headers** — currently only `X-Content-Type-Options`, `HSTS`, and `Referrer-Policy` are set. A proper `Content-Security-Policy` with `frame-ancestors` for Shopify's embedded iframe model would harden the app further. Requires coordination with Shopify's CSP requirements.
+- [ ] **WA-001 / WA-002 cleanup** — switch from name-based tier detection to plan-ID-based when Managed Pricing plans are created in Partner Dashboard. Change `DEFAULT_TIER` from `"business"` back to `"free"`. See Dev Workarounds section above for full checklist.
+
+---
+
 ## Session Log
 
 Reverse-chronological record of major development sessions.
