@@ -50,7 +50,7 @@ describe("Dashboard Loader", () => {
       request: makeRequest(),
       params: {},
       context: {},
-    });
+    } as any);
 
     expect(result.hasPairings).toBe(false);
     expect(result.pairings).toHaveLength(0);
@@ -87,7 +87,7 @@ describe("Dashboard Loader", () => {
       request: makeRequest(),
       params: {},
       context: {},
-    });
+    } as any);
 
     expect(result.hasPairings).toBe(true);
     expect(result.pairings).toHaveLength(1);
@@ -112,7 +112,7 @@ describe("Dashboard Loader", () => {
       request: makeRequest(),
       params: {},
       context: {},
-    });
+    } as any);
 
     expect(result.pairings[0].role).toBe("paired");
   });
@@ -134,7 +134,7 @@ describe("Dashboard Loader", () => {
       request: makeRequest(),
       params: {},
       context: {},
-    });
+    } as any);
 
     expect(result.pairings).toHaveLength(0);
     expect(result.hasPairings).toBe(false);
@@ -148,7 +148,7 @@ describe("Dashboard Loader", () => {
       request: makeRequest(),
       params: {},
       context: {},
-    });
+    } as any);
 
     expect(result.isActive).toBe(false);
     expect(result.tier).toBe("free");

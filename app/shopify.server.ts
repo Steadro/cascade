@@ -7,24 +7,26 @@ import {
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
 
-const requiredEnvVars = {
-  SHOPIFY_API_KEY: process.env.SHOPIFY_API_KEY,
-  SHOPIFY_API_SECRET: process.env.SHOPIFY_API_SECRET,
-  SHOPIFY_APP_URL: process.env.SHOPIFY_APP_URL,
-};
+const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY;
+const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET;
+const SHOPIFY_APP_URL = process.env.SHOPIFY_APP_URL;
 
-for (const [key, value] of Object.entries(requiredEnvVars)) {
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${key}`);
-  }
+if (!SHOPIFY_API_KEY) {
+  throw new Error("Missing required environment variable: SHOPIFY_API_KEY");
+}
+if (!SHOPIFY_API_SECRET) {
+  throw new Error("Missing required environment variable: SHOPIFY_API_SECRET");
+}
+if (!SHOPIFY_APP_URL) {
+  throw new Error("Missing required environment variable: SHOPIFY_APP_URL");
 }
 
 const shopify = shopifyApp({
-  apiKey: requiredEnvVars.SHOPIFY_API_KEY,
-  apiSecretKey: requiredEnvVars.SHOPIFY_API_SECRET,
+  apiKey: SHOPIFY_API_KEY,
+  apiSecretKey: SHOPIFY_API_SECRET,
   apiVersion: ApiVersion.April26,
   scopes: process.env.SCOPES?.split(","),
-  appUrl: requiredEnvVars.SHOPIFY_APP_URL,
+  appUrl: SHOPIFY_APP_URL,
   authPathPrefix: "/auth",
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,

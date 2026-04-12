@@ -71,7 +71,7 @@ describe("Stores Route", () => {
         request: makeRequest(),
         params: {},
         context: {},
-      });
+      } as any);
 
       expect(result.shop).toBe("primary.myshopify.com");
       expect(result.pairings).toHaveLength(1);
@@ -87,7 +87,7 @@ describe("Stores Route", () => {
         request: makeRequest(),
         params: {},
         context: {},
-      });
+      } as any);
 
       expect(result.pairings).toHaveLength(0);
     });
@@ -100,7 +100,7 @@ describe("Stores Route", () => {
         request: makeRequest(),
         params: {},
         context: {},
-      });
+      } as any);
 
       expect(result.tier).toBe("business");
       expect(result.pairingLimit).toBe(3);
@@ -130,10 +130,10 @@ describe("Stores Route", () => {
         }),
         params: {},
         context: {},
-      });
+      } as any);
 
       expect(result.ok).toBe(true);
-      if (result.ok && "pairing" in result) {
+      if (result.ok && "pairing" in result && result.pairing) {
         expect(result.pairing.pairedShop).toBe("target.myshopify.com");
         expect(result.pairing.label).toBe("Staging");
       }
@@ -147,7 +147,7 @@ describe("Stores Route", () => {
         request: makeRequest("POST", { _action: "create", domain: "", label: "Dev" }),
         params: {},
         context: {},
-      });
+      } as any);
 
       expect(result.ok).toBe(false);
     });
@@ -164,7 +164,7 @@ describe("Stores Route", () => {
         }),
         params: {},
         context: {},
-      });
+      } as any);
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
@@ -190,7 +190,7 @@ describe("Stores Route", () => {
         }),
         params: {},
         context: {},
-      });
+      } as any);
 
       expect(result.ok).toBe(true);
 
@@ -218,7 +218,7 @@ describe("Stores Route", () => {
         }),
         params: {},
         context: {},
-      });
+      } as any);
 
       expect(result.ok).toBe(false);
       if (!result.ok) {

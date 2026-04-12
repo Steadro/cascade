@@ -44,7 +44,7 @@ describe("Webhook Handler", () => {
         payload: {},
       } as any);
 
-      const response = await action({ request: makeRequest(), params: {}, context: {} });
+      const response = await action({ request: makeRequest(), params: {}, context: {} } as any);
 
       expect(response).toBeInstanceOf(Response);
       expect(response.status).toBe(200);
@@ -63,7 +63,7 @@ describe("Webhook Handler", () => {
         payload: {},
       } as any);
 
-      const response = await action({ request: makeRequest(), params: {}, context: {} });
+      const response = await action({ request: makeRequest(), params: {}, context: {} } as any);
       expect(response.status).toBe(200);
     });
   });
@@ -88,7 +88,7 @@ describe("Webhook Handler", () => {
         payload: { current: ["read_products", "write_products"] },
       } as any);
 
-      const response = await action({ request: makeRequest(), params: {}, context: {} });
+      const response = await action({ request: makeRequest(), params: {}, context: {} } as any);
       expect(response.status).toBe(200);
 
       const session = await prisma.session.findUnique({
@@ -107,7 +107,7 @@ describe("Webhook Handler", () => {
         payload: {},
       } as any);
 
-      const response = await action({ request: makeRequest(), params: {}, context: {} });
+      const response = await action({ request: makeRequest(), params: {}, context: {} } as any);
       expect(response.status).toBe(200);
     });
   });
@@ -121,7 +121,7 @@ describe("Webhook Handler", () => {
         payload: {},
       } as any);
 
-      const response = await action({ request: makeRequest(), params: {}, context: {} });
+      const response = await action({ request: makeRequest(), params: {}, context: {} } as any);
       expect(response.status).toBe(200);
     });
   });
@@ -177,7 +177,7 @@ describe("Webhook Handler", () => {
         payload: {},
       } as any);
 
-      const response = await action({ request: makeRequest(), params: {}, context: {} });
+      const response = await action({ request: makeRequest(), params: {}, context: {} } as any);
       expect(response.status).toBe(200);
 
       // All pairings involving this shop should be deleted
@@ -212,7 +212,7 @@ describe("Webhook Handler", () => {
         new Error("Database connection lost"),
       );
 
-      const response = await action({ request: makeRequest(), params: {}, context: {} });
+      const response = await action({ request: makeRequest(), params: {}, context: {} } as any);
       expect(response.status).toBe(200);
     });
 
@@ -222,7 +222,7 @@ describe("Webhook Handler", () => {
       );
 
       await expect(
-        action({ request: makeRequest(), params: {}, context: {} }),
+        action({ request: makeRequest(), params: {}, context: {} } as any),
       ).rejects.toBeInstanceOf(Response);
     });
   });

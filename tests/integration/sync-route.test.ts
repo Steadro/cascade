@@ -86,7 +86,7 @@ describe("Sync Route", () => {
         request: makeRequest(),
         params: {},
         context: {},
-      });
+      } as any);
 
       expect(result.shop).toBe("primary.myshopify.com");
       expect(result.pairings).toHaveLength(1);
@@ -102,7 +102,7 @@ describe("Sync Route", () => {
         request: makeRequest(),
         params: {},
         context: {},
-      });
+      } as any);
 
       expect(result.canSync).toBe(false);
     });
@@ -115,7 +115,7 @@ describe("Sync Route", () => {
         request: makeRequest(),
         params: {},
         context: {},
-      });
+      } as any);
 
       expect(result.pairings).toHaveLength(0);
     });
@@ -134,7 +134,7 @@ describe("Sync Route", () => {
         }),
         params: {},
         context: {},
-      });
+      } as any);
 
       expect(result.ok).toBe(false);
     });
@@ -151,7 +151,7 @@ describe("Sync Route", () => {
         }),
         params: {},
         context: {},
-      });
+      } as any);
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
@@ -171,7 +171,7 @@ describe("Sync Route", () => {
         }),
         params: {},
         context: {},
-      });
+      } as any);
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
@@ -199,7 +199,7 @@ describe("Sync Route", () => {
         }),
         params: {},
         context: {},
-      });
+      } as any);
 
       expect(result.ok).toBe(false);
     });
@@ -238,7 +238,7 @@ describe("Sync Route", () => {
         }),
         params: {},
         context: {},
-      });
+      } as any);
 
       expect(result.ok).toBe(true);
       expect(vi.mocked(generatePreview)).toHaveBeenCalledWith(
@@ -285,7 +285,7 @@ describe("Sync Route", () => {
         }),
         params: {},
         context: {},
-      });
+      } as any);
 
       expect(result.ok).toBe(true);
       expect(vi.mocked(generatePreview)).toHaveBeenCalledWith(
@@ -323,7 +323,7 @@ describe("Sync Route", () => {
         }),
         params: {},
         context: {},
-      });
+      } as any);
 
       expect(result.ok).toBe(false);
       if (!result.ok) {
