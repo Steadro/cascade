@@ -20,6 +20,10 @@ topics = ["app/uninstalled", "app/scopes_update"]
 compliance_topics = ["customers/redact", "customers/data_request", "shop/redact"]
 uri = "/webhooks"
 
+# automatically_update_urls_on_dev is DISABLED. The deployed DigitalOcean URL
+# is the source of truth for application_url / redirect_urls. See AD-006 and
+# docs/DEPLOYMENT.md. Do not flip this back to true — it will silently rewrite
+# application_url to a Cloudflare tunnel URL the next time `shopify app dev` runs.
 [build]
-automatically_update_urls_on_dev = true
+automatically_update_urls_on_dev = false
 dev_store_url = "steadro-dev-2.myshopify.com"
