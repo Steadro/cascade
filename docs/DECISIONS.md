@@ -99,11 +99,31 @@ Tracks architectural decisions, temporary workarounds, and cleanup items. Every 
 
 ---
 
+## Phase 3 Cleanup Backlog
+
+Non-blocking issues surfaced during Phase 3.6 deployment and smoke testing. Address opportunistically before or during Phase 4; none block Phase 4 from starting.
+
+### CU-001: Duplicate `authenticate.admin` on embedded iframe first-load
+**Observed:** 2026-04-11 in DO runtime logs during Store B first-install. Two parallel requests both hit `authenticate.admin(request)` at the same millisecond, both logged "No valid session found", both ran the full offline token exchange, both wrote a session row. Returned 200 on `/app` so user flow was unaffected, but this is a race that could duplicate sessions in the DB under load.
+**Impact:** Low. Prisma session storage likely upserts on primary key so duplicates are deduped, but worth confirming. Also wastes one token-exchange roundtrip per first-load.
+**Possible causes:** React Router parallel subrequests for the iframe + data loader, or embedded iframe initialization doing a redundant auth check.
+**Investigation:** trace which two requests are racing. If it's the iframe document request + the loader data fetch, consider whether one can wait on the other. If it's a single request hitting a loader twice, that's a React Router or framework bug.
+
+### CU-002: Stale `trycloudflare.com/extensions` WebSocket reference
+**Observed:** 2026-04-11 in browser console on the deployed app. Shopify's admin-side rendering JS (`render-common-*.js`, served from `cdn.shopify.com`) tries to open a WebSocket to `wss://listed-sale-bangkok-stretch.trycloudflare.com/extensions` and fails. This looks like a stale extensions-dev-server URL persisted in the Partner Dashboard from a previous `shopify app dev` session.
+**Impact:** None observed. The WebSocket failure doesn't break anything — extensions don't exist in the repo (`extensions/` is empty) and the embedded app renders fine.
+**Investigation:** check Partner Dashboard → Cascade → extension development settings for a stale tunnel URL. May auto-clear next time `shopify app dev` runs and registers a fresh tunnel. Safe to ignore unless it causes user-visible breakage.
+
+### CU-003: Polaris cosmetic baseline cleanup
+**Resolved:** 2026-04-11. Swept `app/routes/app._index.tsx`, `app.stores.tsx`, `app.sync.tsx` to use correct Polaris web component attributes per Shopify's `polaris-app-home` docs (`<s-box>` instead of non-existent `<s-card>`, `color="subdued"` instead of `tone="subdued"` on `<s-text>`, `type="strong"` instead of `variant="headingSm"`, `gap="small-200"` instead of invalid `gap="tight"`, removed unsupported `helpText` prop from `<s-text-field>`). Done pre-emptively to give the upcoming styling/UX pass a correct-by-construction baseline.
+
+---
+
 ## Phase 4 Handoff
 
-**Status as of 2026-04-11:** Phase 3.6 is complete. The app is deployed to DigitalOcean App Platform at `https://cascade-app-off6g.ondigitalocean.app`, both dev stores are installed via the deployed URL (primary + `steadro-prod-2.myshopify.com` paired), and Phases 1–3 have been validated against the production PostgreSQL with all 112 tests passing locally (after the local IP was added to the managed DB's Trusted Sources allowlist). `/health` returns 200. `shopify app deploy` has pushed `application_url` and `redirect_urls` to the Partner Dashboard (version `cascade-2`). Any issues surfaced during live multi-store testing belong in Phase 3 cleanup, not Phase 4 scope.
+**Status as of 2026-04-11:** Phase 3.6 is complete and **manually validated end-to-end against two real dev stores**. The app is deployed to DigitalOcean App Platform at `https://cascade-app-off6g.ondigitalocean.app`, both dev stores are installed via the deployed URL (primary + `steadro-prod-2.myshopify.com` paired), all 112 tests pass against the production PostgreSQL locally (after the local IP was added to Trusted Sources), and Kyle has walked through the 5-test smoke checklist with all green: app loads embedded on both stores with correct role banners, pairing card renders with active status, sync preview ran cross-store reads and produced a correct diff summary (0 create / 26 update / 2 unchanged across Products, Collections, Pages, Blogs & Articles, Navigation Menus), "Start Sync" correctly disabled, Back navigation works.
 
-**Phase 4 entry gate:** Kyle's manual multi-store smoke test pass — app loads embedded on both stores, pairing create/read works, sync preview renders a correct diff summary across all 7 resource types. The "Start Sync" button is intentionally disabled in Phase 3 (execution is Phase 4) and should remain disabled until Phase 4 work begins.
+**Phase 4 is cleared to begin.** The "Start Sync" button is intentionally disabled in Phase 3 and should remain disabled until Phase 4's mutation execution work is ready.
 
 **Decision on scope of Phase 4 work before deploy:** Phase 4 coding (mutation execution, ID remapping, CDN rewriting, progress tracking) can proceed against unit tests and single-store `shopify app dev` without a deploy. But the first real end-to-end sync from Store A → Store B requires the deploy to have happened. Plan the deploy for when the first mutation execution is ready to exercise, or sooner if convenient.
 

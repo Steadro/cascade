@@ -37,6 +37,30 @@ When you make a mistake, add a rule to the Known Gotchas section below so it doe
 
 After each meaningful change, commit with a descriptive message. Don't batch multiple unrelated changes into one commit.
 
+### Local vs. Cloud Development
+
+Cascade now has two parallel workflows. Pick the right one for the task:
+
+**Single-store inner loop — `shopify app dev`**
+- Use for: fast UI iteration, loader/action logic on a single store, component-level work, anything where hot reload matters.
+- Target store: `dev_store_url` in `shopify.app.toml` (currently `steadro-dev-2.myshopify.com`).
+- The CLI spins up a Cloudflare tunnel and serves the app from your machine. Inside this tunnel, `SHOPIFY_APP_URL` is whatever the tunnel URL is.
+- **Do not run `shopify app deploy`** from this mode unless you intend to push config changes to the Partner Dashboard. `automatically_update_urls_on_dev` is now disabled (see `shopify.app.toml`), so the CLI will not silently rewrite `application_url` — but `shopify app deploy` still will if you run it.
+- Cost: seconds per change.
+
+**Multi-store validation — push to `main` → DigitalOcean redeploys**
+- Use for: cross-store sync flows, testing against two real stores, any behavior that needs the permanent deployed URL (OAuth, webhooks, session persistence across stores).
+- `git push origin main` triggers a new DO build. ~3–5 min per cycle.
+- `/health` on the deployed URL should return 200 after each build.
+- Both dev stores install against the deployed URL, not a local tunnel.
+
+**When in doubt**: start in `shopify app dev` for the first 80% of a task, then push to DO for the final validation across both stores. Do not try to use `ngrok` or alternate tunnels to emulate multi-store locally — the network blocks tunnels and AD-006 explicitly moved multi-store validation to the cloud.
+
+**Environment variables**:
+- Local `.env` drives `shopify app dev`. `SHOPIFY_APP_URL` gets overwritten by the tunnel URL when dev runs, so its committed value doesn't matter much — but it should still be a valid placeholder or blank.
+- `NODE_ENV=production` should **not** be set locally (affects Prisma client behavior and framework branching). Leave unset or use `development`.
+- DigitalOcean env vars are managed in the DO dashboard, not in `.env`. Never commit real secrets to `.env`.
+
 ## Documentation Lookup Rules
 
 **Always use Context7 MCP to fetch current documentation before writing or modifying code that uses any external library or API.** This is mandatory, not optional. Do not rely on training data for API signatures, method names, configuration options, or patterns.
