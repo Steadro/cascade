@@ -54,9 +54,25 @@ export default function Index() {
 
   const primaryPairings = pairings.filter((p) => p.role === "primary");
   const pairedWith = pairings.find((p) => p.role === "paired");
+  const pendingRequests = pairings.filter(
+    (p) => p.role === "paired" && p.status === "pending",
+  );
 
   return (
     <s-page heading="Cascade">
+      {pendingRequests.length > 0 && (
+        <s-banner tone="warning">
+          <s-stack direction="inline" gap="base">
+            <s-text>
+              You have {pendingRequests.length} pending pairing{" "}
+              {pendingRequests.length === 1 ? "request" : "requests"} from{" "}
+              {pendingRequests.map((p) => p.primaryShop).join(", ")}.
+            </s-text>
+            <s-button href="/app/stores">Review requests</s-button>
+          </s-stack>
+        </s-banner>
+      )}
+
       {hasPairings && primaryPairings.length > 0 && (
         <s-banner>
           <s-text>
@@ -119,10 +135,18 @@ export default function Index() {
                       {pairing.label && <s-badge>{pairing.label}</s-badge>}
                       <s-badge
                         tone={
-                          pairing.status === "active" ? "success" : "critical"
+                          pairing.status === "active"
+                            ? "success"
+                            : pairing.status === "pending"
+                              ? "warning"
+                              : "critical"
                         }
                       >
-                        {pairing.status}
+                        {pairing.status === "pending"
+                          ? pairing.role === "primary"
+                            ? "Awaiting approval"
+                            : "Pending your approval"
+                          : pairing.status}
                       </s-badge>
                     </s-stack>
                     <s-text color="subdued">
