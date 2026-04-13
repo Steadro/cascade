@@ -12,6 +12,21 @@ import { diffResourceType } from "./diff.server";
 export { readResources } from "./reader.server";
 export { matchResources } from "./matcher.server";
 export { diffResourceType } from "./diff.server";
+export { assertShopIsPaired } from "./guards.server";
+export { createRateLimitedClient } from "./rate-limiter.server";
+export { IdRemapper } from "./id-remapper.server";
+export { rewriteCdnUrls } from "./cdn-rewriter.server";
+export {
+  buildMetafieldDefinitionMutation,
+  buildProductMutation,
+  buildCollectionMutation,
+  buildPageMutation,
+  buildBlogMutation,
+  buildMenuMutation,
+  buildUrlRedirectMutation,
+  buildPublishMutation,
+} from "./mutations.server";
+export { executeSync } from "./executor.server";
 
 export async function generatePreview(
   sourceClient: StoreClient,

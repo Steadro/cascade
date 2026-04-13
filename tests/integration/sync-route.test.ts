@@ -18,6 +18,7 @@ vi.mock("../../app/utils/admin-client.server", () => ({
 
 vi.mock("../../app/sync/index.server", () => ({
   generatePreview: vi.fn(),
+  executeSync: vi.fn(),
 }));
 
 const { authenticate } = await import("../../app/shopify.server");
@@ -27,7 +28,7 @@ const { getSubscriptionStatus } = await import(
 const { createStoreClient, wrapAuthAdmin } = await import(
   "../../app/utils/admin-client.server"
 );
-const { generatePreview } = await import("../../app/sync/index.server");
+const { generatePreview, executeSync } = await import("../../app/sync/index.server");
 const { loader, action } = await import("../../app/routes/app.sync");
 
 function mockAuth(shop: string) {
@@ -328,6 +329,155 @@ describe("Sync Route", () => {
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.error).toContain("Failed to generate preview");
+      }
+    });
+  });
+
+  describe("startSync action", () => {
+    it("creates SyncJob and fires executeSync", async () => {
+      mockAuth("primary.myshopify.com");
+      vi.mocked(executeSync).mockResolvedValue(undefined);
+
+      const pairing = await prisma.storePairing.create({
+        data: {
+          primaryShop: "primary.myshopify.com",
+          pairedShop: "dev.myshopify.com",
+          status: "active",
+        },
+      });
+
+      const result = await action({
+        request: makeRequest("POST", {
+          _action: "startSync",
+          pairingId: pairing.id,
+          direction: "push",
+          resourceTypes: "products,pages",
+        }),
+        params: {},
+        context: {},
+      } as any);
+
+      expect(result.ok).toBe(true);
+      if (result.ok && "syncJobId" in result) {
+        expect(result.syncJobId).toBeDefined();
+
+        const job = await prisma.syncJob.findUnique({
+          where: { id: result.syncJobId as string },
+        });
+
+        expect(job).not.toBeNull();
+        expect(job!.sourceShop).toBe("primary.myshopify.com");
+        expect(job!.targetShop).toBe("dev.myshopify.com");
+        expect(job!.status).toBe("pending");
+        expect(JSON.parse(job!.resourceTypes)).toEqual(["products", "pages"]);
+      }
+
+      expect(vi.mocked(executeSync)).toHaveBeenCalled();
+    });
+
+    it("returns error for invalid pairing", async () => {
+      mockAuth("primary.myshopify.com");
+
+      const result = await action({
+        request: makeRequest("POST", {
+          _action: "startSync",
+          pairingId: "nonexistent",
+          direction: "push",
+          resourceTypes: "products",
+        }),
+        params: {},
+        context: {},
+      } as any);
+
+      expect(result.ok).toBe(false);
+    });
+
+    it("returns error for missing resource types", async () => {
+      mockAuth("primary.myshopify.com");
+
+      const result = await action({
+        request: makeRequest("POST", {
+          _action: "startSync",
+          pairingId: "some-id",
+          direction: "push",
+          resourceTypes: "",
+        }),
+        params: {},
+        context: {},
+      } as any);
+
+      expect(result.ok).toBe(false);
+    });
+
+    it("rejects sync when another job is already running", async () => {
+      mockAuth("primary.myshopify.com");
+
+      const pairing = await prisma.storePairing.create({
+        data: {
+          primaryShop: "primary.myshopify.com",
+          pairedShop: "dev.myshopify.com",
+          status: "active",
+        },
+      });
+
+      await prisma.syncJob.create({
+        data: {
+          pairingId: pairing.id,
+          sourceShop: "primary.myshopify.com",
+          targetShop: "dev.myshopify.com",
+          resourceTypes: JSON.stringify(["products"]),
+          status: "running",
+        },
+      });
+
+      const result = await action({
+        request: makeRequest("POST", {
+          _action: "startSync",
+          pairingId: pairing.id,
+          direction: "push",
+          resourceTypes: "products",
+        }),
+        params: {},
+        context: {},
+      } as any);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toContain("already in progress");
+      }
+    });
+
+    it("swaps source/target for pull direction", async () => {
+      mockAuth("primary.myshopify.com");
+      vi.mocked(executeSync).mockResolvedValue(undefined);
+
+      const pairing = await prisma.storePairing.create({
+        data: {
+          primaryShop: "primary.myshopify.com",
+          pairedShop: "dev.myshopify.com",
+          status: "active",
+        },
+      });
+
+      const result = await action({
+        request: makeRequest("POST", {
+          _action: "startSync",
+          pairingId: pairing.id,
+          direction: "pull",
+          resourceTypes: "products",
+        }),
+        params: {},
+        context: {},
+      } as any);
+
+      expect(result.ok).toBe(true);
+      if (result.ok && "syncJobId" in result) {
+        const job = await prisma.syncJob.findUnique({
+          where: { id: result.syncJobId as string },
+        });
+
+        expect(job!.sourceShop).toBe("dev.myshopify.com");
+        expect(job!.targetShop).toBe("primary.myshopify.com");
       }
     });
   });

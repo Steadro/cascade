@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type {
   ActionFunctionArgs,
   HeadersFunction,
@@ -11,7 +11,9 @@ import { authenticate } from "../shopify.server";
 import { getSubscriptionStatus } from "../utils/subscription.server";
 import { getPairingsForShop } from "../utils/pairing.server";
 import { createStoreClient, wrapAuthAdmin } from "../utils/admin-client.server";
-import { generatePreview } from "../sync/index.server";
+import { generatePreview, executeSync } from "../sync/index.server";
+import { assertShopIsPaired } from "../sync/guards.server";
+import db from "../db.server";
 import {
   RESOURCE_TYPE_LABELS,
   SYNC_ORDER,
@@ -19,7 +21,6 @@ import {
   type SyncDirection,
   type SyncPreview,
 } from "../sync/types";
-import db from "../db.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -60,15 +61,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return { ok: false, error: "Select at least one resource type" };
     }
 
-    const pairing = await db.storePairing.findFirst({
-      where: {
-        id: pairingId,
-        status: "active",
-        OR: [{ primaryShop: shop }, { pairedShop: shop }],
-      },
-    });
-
-    if (!pairing) {
+    let pairing;
+    try {
+      pairing = await assertShopIsPaired(shop, pairingId);
+    } catch {
       return { ok: false, error: "Invalid or inactive store pairing" };
     }
 
@@ -108,37 +104,142 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
+  if (actionType === "startSync") {
+    const pairingId = formData.get("pairingId") as string;
+    const rawDirection = formData.get("direction") as string;
+    const direction: SyncDirection =
+      rawDirection === "push" || rawDirection === "pull" ? rawDirection : "push";
+    const typesRaw = (formData.get("resourceTypes") as string) ?? "";
+    const resourceTypes = typesRaw
+      .split(",")
+      .slice(0, 20)
+      .filter((t): t is ResourceType => t in RESOURCE_TYPE_LABELS);
+
+    if (!pairingId || resourceTypes.length === 0) {
+      return { ok: false, error: "Invalid sync configuration" };
+    }
+
+    let pairing;
+    try {
+      pairing = await assertShopIsPaired(shop, pairingId);
+    } catch {
+      return { ok: false, error: "Invalid or inactive store pairing" };
+    }
+
+    const pairedShop =
+      pairing.primaryShop === shop ? pairing.pairedShop : pairing.primaryShop;
+
+    const sourceShop = direction === "push" ? shop : pairedShop;
+    const targetShop = direction === "push" ? pairedShop : shop;
+
+    // Prevent concurrent syncs on the same pairing
+    const existingJob = await db.syncJob.findFirst({
+      where: {
+        pairingId,
+        status: { in: ["pending", "running"] },
+      },
+      select: { id: true },
+    });
+
+    if (existingJob) {
+      return { ok: false, error: "A sync is already in progress for this store pairing" };
+    }
+
+    const syncJob = await db.syncJob.create({
+      data: {
+        pairingId,
+        sourceShop,
+        targetShop,
+        resourceTypes: JSON.stringify(resourceTypes),
+      },
+    });
+
+    // Fire-and-forget: don't await
+    executeSync(syncJob.id).catch((error) => {
+      console.error(`Sync job ${syncJob.id} failed:`, error);
+    });
+
+    return { ok: true, syncJobId: syncJob.id };
+  }
+
   return { ok: false, error: "Unknown action" };
 };
+
+// ---------------------------------------------------------------------------
+// Types for sync status polling
+// ---------------------------------------------------------------------------
+
+interface SyncJobStatus {
+  id: string;
+  status: string;
+  progress: number;
+  totalItems: number;
+  processedItems: number;
+  errors: Array<{
+    resourceType: string;
+    handle: string;
+    action: string;
+    error: string;
+  }>;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 const ACTION_TONES = {
   create: "info",
   update: "warning",
 } as const;
 
+const POLL_INTERVAL_MS = 2000;
+
 export default function SyncPage() {
-  const { pairings, tier } = useLoaderData<typeof loader>();
+  const { pairings, tier, canSync } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
 
-  const [step, setStep] = useState<"configure" | "preview">("configure");
+  const [step, setStep] = useState<"configure" | "preview" | "executing">(
+    "configure",
+  );
   const [selectedPairing, setSelectedPairing] = useState("");
   const [direction, setDirection] = useState<SyncDirection>("push");
   const [selectedTypes, setSelectedTypes] = useState<Set<ResourceType>>(
     new Set(SYNC_ORDER),
   );
+  const [syncJobId, setSyncJobId] = useState<string | null>(null);
+  const [jobStatus, setJobStatus] = useState<SyncJobStatus | null>(null);
+
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isLoading = fetcher.state !== "idle";
   const preview = fetcher.data?.ok
     ? (fetcher.data as { ok: true; preview: SyncPreview }).preview
     : null;
 
+  // Handle preview response
   useEffect(() => {
     if (fetcher.data?.ok && preview && fetcher.state === "idle") {
       setStep("preview");
     }
   }, [fetcher.data, fetcher.state, preview]);
 
+  // Handle startSync response
+  useEffect(() => {
+    if (
+      fetcher.data?.ok &&
+      "syncJobId" in fetcher.data &&
+      fetcher.state === "idle"
+    ) {
+      const jobId = (fetcher.data as { ok: true; syncJobId: string }).syncJobId;
+      setSyncJobId(jobId);
+      setStep("executing");
+    }
+  }, [fetcher.data, fetcher.state]);
+
+  // Handle errors
   useEffect(() => {
     if (fetcher.data && !fetcher.data.ok && fetcher.state === "idle") {
       shopify.toast.show(
@@ -147,6 +248,38 @@ export default function SyncPage() {
       );
     }
   }, [fetcher.data, fetcher.state, shopify]);
+
+  // Poll for job status
+  const pollStatus = useCallback(async (jobId: string) => {
+    try {
+      const response = await fetch(`/api/sync-status?jobId=${jobId}`);
+      const data = await response.json();
+      if (data.ok) {
+        setJobStatus(data.job);
+        if (data.job.status === "completed" || data.job.status === "failed") {
+          if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
+        }
+      }
+    } catch {
+      // Ignore polling errors — will retry on next interval
+    }
+  }, []);
+
+  useEffect(() => {
+    if (step === "executing" && syncJobId) {
+      pollStatus(syncJobId);
+      pollRef.current = setInterval(() => pollStatus(syncJobId), POLL_INTERVAL_MS);
+      return () => {
+        if (pollRef.current) {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
+      };
+    }
+  }, [step, syncJobId, pollStatus]);
 
   function toggleType(type: ResourceType) {
     setSelectedTypes((prev) => {
@@ -180,7 +313,114 @@ export default function SyncPage() {
     );
   }
 
+  function startSync() {
+    fetcher.submit(
+      {
+        _action: "startSync",
+        pairingId: selectedPairing,
+        direction,
+        resourceTypes: Array.from(selectedTypes).join(","),
+      },
+      { method: "POST" },
+    );
+  }
+
+  function resetToConfig() {
+    setStep("configure");
+    setSyncJobId(null);
+    setJobStatus(null);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Executing step
+  // ---------------------------------------------------------------------------
+
+  if (step === "executing") {
+    const isDone =
+      jobStatus?.status === "completed" || jobStatus?.status === "failed";
+    const hasErrors = (jobStatus?.errors?.length ?? 0) > 0;
+
+    return (
+      <s-page heading="Sync in Progress">
+        <s-section>
+          <s-stack direction="block" gap="base">
+            {!jobStatus || jobStatus.status === "running" ? (
+              <s-banner tone="info">
+                <s-text>
+                  Syncing... {jobStatus?.processedItems ?? 0} /{" "}
+                  {jobStatus?.totalItems ?? "?"} items ({jobStatus?.progress ?? 0}
+                  %)
+                </s-text>
+              </s-banner>
+            ) : jobStatus.status === "completed" ? (
+              <s-banner tone="success">
+                <s-text>
+                  Sync completed. {jobStatus.processedItems} items processed.
+                  {hasErrors
+                    ? ` ${jobStatus.errors.length} error(s) occurred.`
+                    : ""}
+                </s-text>
+              </s-banner>
+            ) : jobStatus.status === "failed" ? (
+              <s-banner tone="critical">
+                <s-text>
+                  Sync failed. {jobStatus.processedItems} /{" "}
+                  {jobStatus.totalItems} items processed.
+                </s-text>
+              </s-banner>
+            ) : (
+              <s-banner>
+                <s-text>Preparing sync...</s-text>
+              </s-banner>
+            )}
+
+            {jobStatus && (
+              <s-stack direction="block" gap="small-200">
+                <s-text>
+                  Progress: {jobStatus.progress}% ({jobStatus.processedItems} /{" "}
+                  {jobStatus.totalItems})
+                </s-text>
+                <progress
+                  value={jobStatus.progress}
+                  max={100}
+                  style={{ width: "100%", height: "8px" }}
+                />
+              </s-stack>
+            )}
+
+            {hasErrors && isDone && (
+              <s-section heading="Errors">
+                <s-stack direction="block" gap="small-200">
+                  {jobStatus!.errors.map((err, i) => (
+                    <s-banner key={i} tone="warning">
+                      <s-text>
+                        [{err.resourceType}] {err.handle} ({err.action}):{" "}
+                        {err.error}
+                      </s-text>
+                    </s-banner>
+                  ))}
+                </s-stack>
+              </s-section>
+            )}
+
+            {isDone && (
+              <s-button variant="primary" onClick={resetToConfig}>
+                Back to Sync
+              </s-button>
+            )}
+          </s-stack>
+        </s-section>
+      </s-page>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Preview step
+  // ---------------------------------------------------------------------------
+
   if (step === "preview" && preview) {
+    const hasChanges = preview.totalCreate > 0 || preview.totalUpdate > 0;
+
     return (
       <s-page heading="Sync Preview">
         <s-button slot="back-action" onClick={() => setStep("configure")}>
@@ -237,7 +477,7 @@ export default function SyncPage() {
             </s-section>
           ))}
 
-        {preview.totalCreate === 0 && preview.totalUpdate === 0 && (
+        {!hasChanges && (
           <s-section>
             <s-text color="subdued">
               Everything is in sync — no changes needed.
@@ -247,18 +487,34 @@ export default function SyncPage() {
 
         <s-section>
           <s-stack direction="inline" gap="base">
-            <s-button variant="primary" disabled>
-              Start Sync
-            </s-button>
+            {canSync && hasChanges ? (
+              <s-button
+                variant="primary"
+                onClick={startSync}
+                {...(isLoading ? { loading: true } : {})}
+              >
+                Start Sync
+              </s-button>
+            ) : (
+              <s-button variant="primary" disabled>
+                Start Sync
+              </s-button>
+            )}
             <s-button onClick={() => setStep("configure")}>Back</s-button>
           </s-stack>
-          <s-text color="subdued">
-            Sync execution will be available in a future update.
-          </s-text>
+          {!canSync && (
+            <s-text color="subdued">
+              Upgrade your plan to execute syncs.
+            </s-text>
+          )}
         </s-section>
       </s-page>
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Configure step
+  // ---------------------------------------------------------------------------
 
   return (
     <s-page heading="Sync">

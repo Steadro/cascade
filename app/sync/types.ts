@@ -69,11 +69,17 @@ export interface SyncPreview {
   generatedAt: string;
 }
 
+export interface StoreClientResponse {
+  readonly data?: Record<string, unknown>;
+  readonly errors?: unknown;
+  readonly extensions?: Record<string, unknown>;
+}
+
 export interface StoreClient {
   request: (
     query: string,
     options?: { variables?: Record<string, unknown> },
-  ) => Promise<{ data?: Record<string, unknown>; errors?: unknown }>;
+  ) => Promise<StoreClientResponse>;
 }
 
 export const TIMESTAMP_DIFF_TYPES: ResourceType[] = [

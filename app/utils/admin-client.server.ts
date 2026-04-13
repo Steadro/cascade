@@ -1,7 +1,7 @@
 import { createAdminApiClient } from "@shopify/admin-api-client";
 import db from "../db.server";
 import { apiVersion } from "../shopify.server";
-import type { StoreClient } from "../sync/types";
+import type { StoreClient, StoreClientResponse } from "../sync/types";
 
 export async function createStoreClient(shop: string): Promise<StoreClient> {
   const session = await db.session.findFirst({
@@ -26,7 +26,7 @@ export async function createStoreClient(shop: string): Promise<StoreClient> {
       const response = await client.request(query, {
         variables: options?.variables,
       });
-      return response as { data?: Record<string, unknown>; errors?: unknown };
+      return response as StoreClientResponse;
     },
   };
 }
@@ -43,7 +43,7 @@ export function wrapAuthAdmin(admin: {
         variables: options?.variables,
       });
       const json = await response.json();
-      return json as { data?: Record<string, unknown>; errors?: unknown };
+      return json as StoreClientResponse;
     },
   };
 }
