@@ -66,7 +66,14 @@ export default function Index() {
             <s-text>
               You have {pendingRequests.length} pending pairing{" "}
               {pendingRequests.length === 1 ? "request" : "requests"} from{" "}
-              {pendingRequests.map((p) => p.primaryShop).join(", ")}.
+              {pendingRequests
+                .map((p) =>
+                  p.primaryShopName
+                    ? `${p.primaryShopName} (${p.primaryShop})`
+                    : p.primaryShop,
+                )
+                .join(", ")}
+              .
             </s-text>
             <s-button href="/app/stores">Review requests</s-button>
           </s-stack>
@@ -128,8 +135,12 @@ export default function Index() {
                   <s-stack direction="block" gap="small-200">
                     <s-text type="strong">
                       {pairing.role === "primary"
-                        ? pairing.pairedShop
-                        : pairing.primaryShop}
+                        ? pairing.pairedShopName
+                          ? `${pairing.pairedShopName} (${pairing.pairedShop})`
+                          : pairing.pairedShop
+                        : pairing.primaryShopName
+                          ? `${pairing.primaryShopName} (${pairing.primaryShop})`
+                          : pairing.primaryShop}
                     </s-text>
                     <s-stack direction="inline" gap="small-200">
                       {pairing.label && <s-badge>{pairing.label}</s-badge>}

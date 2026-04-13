@@ -34,13 +34,15 @@ model Session {
 }
 
 model StorePairing {
-  id          String   @id @default(cuid())
-  primaryShop String
-  pairedShop  String
-  label       String?
-  status      String   @default("active")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(cuid())
+  primaryShop     String
+  pairedShop      String
+  primaryShopName String?
+  pairedShopName  String?
+  label           String?
+  status          String   @default("active")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   syncJobs     SyncJob[]
   resourceMaps ResourceMap[]

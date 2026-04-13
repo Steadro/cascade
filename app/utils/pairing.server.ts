@@ -1,10 +1,43 @@
+import { createAdminApiClient } from "@shopify/admin-api-client";
 import db from "../db.server";
+import { apiVersion } from "../shopify.server";
 import { getSubscriptionStatus } from "./subscription.server";
+
+const SHOP_NAME_QUERY = `#graphql
+  query ShopName {
+    shop { name }
+  }
+`;
+
+async function fetchShopName(shop: string): Promise<string | null> {
+  try {
+    const session = await db.session.findFirst({
+      where: { shop, isOnline: false },
+      select: { accessToken: true, shop: true },
+    });
+
+    if (!session) return null;
+
+    const client = createAdminApiClient({
+      storeDomain: session.shop,
+      apiVersion,
+      accessToken: session.accessToken,
+    });
+
+    const response = await client.request(SHOP_NAME_QUERY);
+    const data = response as { data?: { shop?: { name?: string } } };
+    return data?.data?.shop?.name ?? null;
+  } catch {
+    return null;
+  }
+}
 
 interface PairingWithMeta {
   id: string;
   primaryShop: string;
   pairedShop: string;
+  primaryShopName: string | null;
+  pairedShopName: string | null;
   label: string | null;
   status: string;
   createdAt: Date;
@@ -145,10 +178,17 @@ export async function createPairing(
     });
   }
 
+  const [primaryName, pairedName] = await Promise.all([
+    fetchShopName(shop),
+    fetchShopName(normalizedTarget),
+  ]);
+
   return db.storePairing.create({
     data: {
       primaryShop: shop,
       pairedShop: normalizedTarget,
+      primaryShopName: primaryName,
+      pairedShopName: pairedName,
       label,
       status: "pending",
     },
@@ -251,6 +291,8 @@ export async function getPairingsForShop(
     id: p.id,
     primaryShop: p.primaryShop,
     pairedShop: p.pairedShop,
+    primaryShopName: p.primaryShopName,
+    pairedShopName: p.pairedShopName,
     label: p.label,
     status: p.status,
     createdAt: p.createdAt,

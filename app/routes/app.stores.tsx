@@ -196,8 +196,12 @@ export default function StoresPage() {
                   <s-stack direction="block" gap="small-200">
                     <s-text type="strong">
                       {pairing.role === "primary"
-                        ? pairing.pairedShop
-                        : pairing.primaryShop}
+                        ? pairing.pairedShopName
+                          ? `${pairing.pairedShopName} (${pairing.pairedShop})`
+                          : pairing.pairedShop
+                        : pairing.primaryShopName
+                          ? `${pairing.primaryShopName} (${pairing.primaryShop})`
+                          : pairing.primaryShop}
                     </s-text>
                     <s-stack direction="inline" gap="small-200">
                       {pairing.label && (
