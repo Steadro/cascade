@@ -15,6 +15,8 @@ import {
   validatePairingRequest,
   createPairing,
   removePairing,
+  approvePairing,
+  rejectPairing,
 } from "../utils/pairing.server";
 
 const MAX_LABEL_LENGTH = 50;
@@ -95,6 +97,40 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
+  if (actionType === "approve") {
+    const pairingId = formData.get("pairingId") as string;
+    if (!pairingId) {
+      return { ok: false, error: "Missing pairing ID" };
+    }
+
+    try {
+      await approvePairing(shop, pairingId);
+      return { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "Failed to approve pairing",
+      };
+    }
+  }
+
+  if (actionType === "reject") {
+    const pairingId = formData.get("pairingId") as string;
+    if (!pairingId) {
+      return { ok: false, error: "Missing pairing ID" };
+    }
+
+    try {
+      await rejectPairing(shop, pairingId);
+      return { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "Failed to reject pairing",
+      };
+    }
+  }
+
   return { ok: false, error: "Unknown action" };
 };
 
@@ -109,7 +145,9 @@ export default function StoresPage() {
 
   const isSubmitting = fetcher.state !== "idle";
   const isPrimary = pairings.length === 0 || pairings.some((p) => p.role === "primary");
-  const activePrimaryCount = pairings.filter((p) => p.role === "primary").length;
+  const activePrimaryCount = pairings.filter(
+    (p) => p.role === "primary" && (p.status === "active" || p.status === "pending"),
+  ).length;
   const canAddMore = isPrimary && activePrimaryCount < pairingLimit;
 
   useEffect(() => {
@@ -167,10 +205,18 @@ export default function StoresPage() {
                       )}
                       <s-badge
                         tone={
-                          pairing.status === "active" ? "success" : "critical"
+                          pairing.status === "active"
+                            ? "success"
+                            : pairing.status === "pending"
+                              ? "warning"
+                              : "critical"
                         }
                       >
-                        {pairing.status}
+                        {pairing.status === "pending"
+                          ? pairing.role === "primary"
+                            ? "Awaiting approval"
+                            : "Pending your approval"
+                          : pairing.status}
                       </s-badge>
                     </s-stack>
                     <s-text color="subdued">
@@ -179,21 +225,53 @@ export default function StoresPage() {
                         : "Never synced"}
                     </s-text>
                   </s-stack>
-                  {pairing.role === "primary" && (
-                    <s-button
-                      variant="tertiary"
-                      tone="critical"
-                      onClick={() => {
-                        fetcher.submit(
-                          { _action: "remove", pairingId: pairing.id },
-                          { method: "POST" },
-                        );
-                      }}
-                      {...(isSubmitting ? { loading: true } : {})}
-                    >
-                      Remove
-                    </s-button>
-                  )}
+                  <s-stack direction="inline" gap="small-200">
+                    {pairing.role === "paired" &&
+                      pairing.status === "pending" && (
+                        <>
+                          <s-button
+                            variant="primary"
+                            onClick={() => {
+                              fetcher.submit(
+                                { _action: "approve", pairingId: pairing.id },
+                                { method: "POST" },
+                              );
+                            }}
+                            {...(isSubmitting ? { loading: true } : {})}
+                          >
+                            Accept
+                          </s-button>
+                          <s-button
+                            variant="tertiary"
+                            tone="critical"
+                            onClick={() => {
+                              fetcher.submit(
+                                { _action: "reject", pairingId: pairing.id },
+                                { method: "POST" },
+                              );
+                            }}
+                            {...(isSubmitting ? { loading: true } : {})}
+                          >
+                            Reject
+                          </s-button>
+                        </>
+                      )}
+                    {pairing.role === "primary" && (
+                      <s-button
+                        variant="tertiary"
+                        tone="critical"
+                        onClick={() => {
+                          fetcher.submit(
+                            { _action: "remove", pairingId: pairing.id },
+                            { method: "POST" },
+                          );
+                        }}
+                        {...(isSubmitting ? { loading: true } : {})}
+                      >
+                        Remove
+                      </s-button>
+                    )}
+                  </s-stack>
                 </s-stack>
               </s-box>
             ))}

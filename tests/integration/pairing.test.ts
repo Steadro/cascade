@@ -17,6 +17,8 @@ const {
   validatePairingRequest,
   createPairing,
   removePairing,
+  approvePairing,
+  rejectPairing,
   getPairingsForShop,
   getDashboardData,
 } = await import("../../app/utils/pairing.server");
@@ -214,7 +216,7 @@ describe("createPairing", () => {
     expect(pairing.primaryShop).toBe("primary.myshopify.com");
     expect(pairing.pairedShop).toBe("dev.myshopify.com");
     expect(pairing.label).toBe("Development");
-    expect(pairing.status).toBe("active");
+    expect(pairing.status).toBe("pending");
   });
 
   it("reactivates a disconnected pairing", async () => {
@@ -285,6 +287,136 @@ describe("removePairing", () => {
     await expect(
       removePairing("primary.myshopify.com", "nonexistent-id"),
     ).rejects.toThrow("Pairing not found");
+  });
+});
+
+describe("approvePairing", () => {
+  it("sets pending pairing to active", async () => {
+    const pairing = await prisma.storePairing.create({
+      data: {
+        primaryShop: "primary.myshopify.com",
+        pairedShop: "dev.myshopify.com",
+        status: "pending",
+      },
+    });
+
+    await approvePairing("dev.myshopify.com", pairing.id);
+
+    const updated = await prisma.storePairing.findUnique({
+      where: { id: pairing.id },
+    });
+    expect(updated!.status).toBe("active");
+  });
+
+  it("rejects if shop is not the paired store", async () => {
+    const pairing = await prisma.storePairing.create({
+      data: {
+        primaryShop: "primary.myshopify.com",
+        pairedShop: "dev.myshopify.com",
+        status: "pending",
+      },
+    });
+
+    await expect(
+      approvePairing("primary.myshopify.com", pairing.id),
+    ).rejects.toThrow("Only the paired store can approve");
+  });
+
+  it("rejects if pairing is not pending", async () => {
+    const pairing = await prisma.storePairing.create({
+      data: {
+        primaryShop: "primary.myshopify.com",
+        pairedShop: "dev.myshopify.com",
+        status: "active",
+      },
+    });
+
+    await expect(
+      approvePairing("dev.myshopify.com", pairing.id),
+    ).rejects.toThrow("not pending");
+  });
+
+  it("rejects if pairing not found", async () => {
+    await expect(
+      approvePairing("dev.myshopify.com", "nonexistent-id"),
+    ).rejects.toThrow("Pairing not found");
+  });
+});
+
+describe("rejectPairing", () => {
+  it("sets pending pairing to rejected", async () => {
+    const pairing = await prisma.storePairing.create({
+      data: {
+        primaryShop: "primary.myshopify.com",
+        pairedShop: "dev.myshopify.com",
+        status: "pending",
+      },
+    });
+
+    await rejectPairing("dev.myshopify.com", pairing.id);
+
+    const updated = await prisma.storePairing.findUnique({
+      where: { id: pairing.id },
+    });
+    expect(updated!.status).toBe("rejected");
+  });
+
+  it("rejects if shop is not the paired store", async () => {
+    const pairing = await prisma.storePairing.create({
+      data: {
+        primaryShop: "primary.myshopify.com",
+        pairedShop: "dev.myshopify.com",
+        status: "pending",
+      },
+    });
+
+    await expect(
+      rejectPairing("primary.myshopify.com", pairing.id),
+    ).rejects.toThrow("Only the paired store can reject");
+  });
+
+  it("rejects if pairing is not pending", async () => {
+    const pairing = await prisma.storePairing.create({
+      data: {
+        primaryShop: "primary.myshopify.com",
+        pairedShop: "dev.myshopify.com",
+        status: "active",
+      },
+    });
+
+    await expect(
+      rejectPairing("dev.myshopify.com", pairing.id),
+    ).rejects.toThrow("not pending");
+  });
+});
+
+describe("getPairingsForShop with pending", () => {
+  it("includes pending pairings", async () => {
+    await prisma.storePairing.create({
+      data: {
+        primaryShop: "primary.myshopify.com",
+        pairedShop: "dev.myshopify.com",
+        status: "pending",
+      },
+    });
+
+    const pairings = await getPairingsForShop("dev.myshopify.com");
+    expect(pairings).toHaveLength(1);
+    expect(pairings[0].status).toBe("pending");
+    expect(pairings[0].role).toBe("paired");
+  });
+
+  it("excludes rejected pairings", async () => {
+    await prisma.storePairing.create({
+      data: {
+        primaryShop: "primary.myshopify.com",
+        pairedShop: "dev.myshopify.com",
+        status: "rejected",
+      },
+    });
+
+    const pairings = await getPairingsForShop("dev.myshopify.com");
+    expect(pairings).toHaveLength(0);
   });
 });
 

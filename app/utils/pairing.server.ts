@@ -91,7 +91,7 @@ export async function validatePairingRequest(
 
   const subscription = await getSubscriptionStatus(admin);
   const activeCount = await db.storePairing.count({
-    where: { primaryShop: shop, status: "active" },
+    where: { primaryShop: shop, status: { in: ["active", "pending"] } },
   });
 
   if (activeCount >= subscription.pairingLimit) {
@@ -110,6 +110,10 @@ export async function validatePairingRequest(
 
   if (existing && existing.status === "active") {
     return { ok: false, error: "Already paired with this store" };
+  }
+
+  if (existing && existing.status === "pending") {
+    return { ok: false, error: "A pairing request is already pending for this store" };
   }
 
   if (existing && existing.status === "disconnected") {
@@ -146,6 +150,7 @@ export async function createPairing(
       primaryShop: shop,
       pairedShop: normalizedTarget,
       label,
+      status: "pending",
     },
   });
 }
@@ -172,12 +177,64 @@ export async function removePairing(
   });
 }
 
+export async function approvePairing(
+  shop: string,
+  pairingId: string,
+): Promise<void> {
+  const pairing = await db.storePairing.findUnique({
+    where: { id: pairingId },
+  });
+
+  if (!pairing) {
+    throw new Error("Pairing not found");
+  }
+
+  if (pairing.pairedShop !== shop) {
+    throw new Error("Only the paired store can approve a pairing request");
+  }
+
+  if (pairing.status !== "pending") {
+    throw new Error("Pairing is not pending approval");
+  }
+
+  await db.storePairing.update({
+    where: { id: pairingId },
+    data: { status: "active" },
+  });
+}
+
+export async function rejectPairing(
+  shop: string,
+  pairingId: string,
+): Promise<void> {
+  const pairing = await db.storePairing.findUnique({
+    where: { id: pairingId },
+  });
+
+  if (!pairing) {
+    throw new Error("Pairing not found");
+  }
+
+  if (pairing.pairedShop !== shop) {
+    throw new Error("Only the paired store can reject a pairing request");
+  }
+
+  if (pairing.status !== "pending") {
+    throw new Error("Pairing is not pending approval");
+  }
+
+  await db.storePairing.update({
+    where: { id: pairingId },
+    data: { status: "rejected" },
+  });
+}
+
 export async function getPairingsForShop(
   shop: string,
 ): Promise<PairingWithMeta[]> {
   const pairings = await db.storePairing.findMany({
     where: {
-      status: "active",
+      status: { in: ["active", "pending"] },
       OR: [{ primaryShop: shop }, { pairedShop: shop }],
     },
     include: {
